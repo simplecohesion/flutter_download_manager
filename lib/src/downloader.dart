@@ -55,15 +55,9 @@ class DownloadManager {
       var partialFilePath = savePath + partialExtension;
       var partialFile = File(partialFilePath);
 
-      var fileExist = await file.exists();
       var partialFileExist = await partialFile.exists();
 
-      if (fileExist) {
-        if (kDebugMode) {
-          print("File Exists");
-        }
-        setStatus(task, DownloadStatus.completed);
-      } else if (partialFileExist) {
+      if (partialFileExist) {
         if (kDebugMode) {
           print("Partial File Exists");
         }
