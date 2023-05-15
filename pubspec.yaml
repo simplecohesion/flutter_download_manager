@@ -4,14 +4,13 @@ version: 0.5.5
 homepage: https://github.com/nabil6391/flutter_download_manager
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
-  flutter: ">=1.17.0"
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
   dio: ^5.0.2
-  collection:
+  collection: ^1.17.1
 
 dev_dependencies:
   flutter_test:
@@ -19,4 +18,3 @@ dev_dependencies:
   lints: ^2.0.1
 
 flutter:
-
