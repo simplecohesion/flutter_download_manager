@@ -59,7 +59,6 @@ class DownloadManager {
       if (kDebugMode) {
         print(url);
       }
-      var file = File(savePath.toString());
       partialFilePath = savePath + partialExtension;
       partialFile = File(partialFilePath);
 
@@ -158,6 +157,7 @@ class DownloadManager {
 
       return _addDownloadRequest(DownloadRequest(url, downloadFilename));
     }
+    return null;
   }
 
   Future<DownloadTask> _addDownloadRequest(
