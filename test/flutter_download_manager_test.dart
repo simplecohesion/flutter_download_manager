@@ -15,25 +15,28 @@ void main() {
 
   test('future download', () async {
     var dl = DownloadManager();
-
     DownloadTask? task = await dl.addDownload(url4, "./test.mp4");
 
-    task?.status.addListener(() {
+    expect(task, isNotNull);
+    expect(task!.status.value, isA<DownloadStatus>());
+
+    task.status.addListener(() {
       print(task.status.value);
     });
 
-    task?.progress.addListener(() {
+    task.progress.addListener(() {
       print(task.progress.value);
     });
 
     await dl.whenDownloadComplete(url4);
+    expect(task.status.value, DownloadStatus.completed);
   });
 
   test('parallel download', () async {
     var dl = DownloadManager();
 
     DownloadTask? task = await dl.addDownload(url2, "./test2.ipa");
-    DownloadTask? task2 = await  dl.addDownload(url3, "./test3.ipa");
+    DownloadTask? task2 = await dl.addDownload(url3, "./test3.ipa");
     DownloadTask? task3 = await dl.addDownload(url, "./test.ipa");
 
     task?.status.addListener(() {
@@ -48,7 +51,8 @@ void main() {
       print(task3.status.value);
     });
 
-    await dl.whenBatchDownloadsComplete([url, url2, url3], timeout: Duration(seconds: 20));
+    await dl.whenBatchDownloadsComplete([url, url2, url3],
+        timeout: Duration(seconds: 20));
   });
 
   test('cancel download', () async {
@@ -210,5 +214,56 @@ void main() {
     dl.cancelDownload(url3);
 
     await dl.whenBatchDownloadsComplete(urls);
+  });
+
+  test('handle invalid URL format', () async {
+    var dl = DownloadManager();
+    var invalidUrl = "not_a_valid_url";
+    DownloadTask? task = await dl.addDownload(invalidUrl, "./test.invalid");
+    expect(task, isNull);
+  });
+
+  test('handle server error response', () async {
+    var dl = DownloadManager();
+    var errorUrl = "https://httpstat.us/500";
+    DownloadTask? task = await dl.addDownload(errorUrl, "./error.file");
+    await dl.whenDownloadComplete(errorUrl);
+    expect(task?.status.value, DownloadStatus.failed);
+  });
+
+  test('handle write permissions issue', () async {
+    var dl = DownloadManager();
+    var protectedPath = "/system/test.file";
+    DownloadTask? task = await dl.addDownload(url3, protectedPath);
+    await dl.whenDownloadComplete(url3);
+    expect(task?.status.value, DownloadStatus.failed);
+  });
+
+  test('handle existing file', () async {
+    var dl = DownloadManager();
+    // First download to create file
+    await dl.addDownload(url3, "./existing.file");
+    await dl.whenDownloadComplete(url3);
+
+    // Try to download again to same path
+    DownloadTask? task = await dl.addDownload(url3, "./existing.file");
+    await dl.whenDownloadComplete(url3);
+    expect(task?.status.value, DownloadStatus.completed);
+  });
+
+  test('handle network interruption', () async {
+    var dl = DownloadManager();
+    DownloadTask? task = await dl.addDownload(url4, "./network_test.mp4");
+
+    // Simulate network loss after 1 second
+    Future.delayed(Duration(seconds: 1), () {
+      // This would need integration with a mock network layer
+      // Currently just testing status transitions
+      dl.pauseDownload(url4);
+      dl.resumeDownload(url4);
+    });
+
+    await dl.whenDownloadComplete(url4);
+    expect(task?.status.value, DownloadStatus.completed);
   });
 }

@@ -3,24 +3,32 @@ import 'dart:collection';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'download_manager_platform.dart'; // <-- New platform interface import
-
-// Removed the conditional import of web/native implementations
+import 'package:flutter_download_manager/flutter_download_manager.dart';
+import 'package:flutter_download_manager/src/native_download_manager.dart';
+import 'web_download_manager.dart'
+    if (dart.library.io) 'native_download_manager.dart';
 
 class DownloadManager {
   final Map<String, DownloadTask> _cache = <String, DownloadTask>{};
   final Queue<DownloadRequest> _queue = Queue();
-  // Note: we no longer need a separate Dio here since the platform instance has one
+  var dio = Dio();
+  static const partialExtension = ".partial";
+  static const tempExtension = ".temp";
+
+  // var tasks = StreamController<DownloadTask>();
 
   int maxConcurrentTasks = 2;
   int runningTasks = 0;
 
   static final DownloadManager _dm = DownloadManager._internal();
-  late final DownloadManagerPlatform _implementation;
+  late final dynamic _implementation;
 
   DownloadManager._internal() {
-    // Use platform interface instance (defaults to native unless overridden)
-    _implementation = DownloadManagerPlatform.instance;
+    if (kIsWeb) {
+      _implementation = WebDownloadManager();
+    } else {
+      _implementation = NativeDownloadManager();
+    }
   }
 
   factory DownloadManager({
@@ -30,9 +38,11 @@ class DownloadManager {
     if (maxConcurrentTasks != null) {
       _dm._implementation.maxConcurrentTasks = maxConcurrentTasks;
     }
+
     if (dio != null) {
       _dm._implementation.dio = dio;
     }
+
     return _dm;
   }
 
@@ -40,6 +50,7 @@ class DownloadManager {
       (int received, int total) {
         getDownload(url)?.progress.value =
             (received + partialFileLength) / (total + partialFileLength);
+
         if (total == -1) {}
       };
 
@@ -62,6 +73,7 @@ class DownloadManager {
   void setStatus(DownloadTask? task, DownloadStatus status) {
     if (task != null) {
       task.status.value = status;
+
       if (status.isCompleted) {
         disposeNotifiers(task);
       }
@@ -82,12 +94,15 @@ class DownloadManager {
   Future<void> removeDownload(String url) =>
       _implementation.removeDownload(url);
 
-  // Do not immediately call getDownload after addDownload, rather use the returned DownloadTask from addDownload
-  DownloadTask? getDownload(String url) => _cache[url];
+  // Do not immediately call getDownload After addDownload, rather use the returned DownloadTask from addDownload
+  DownloadTask? getDownload(String url) {
+    return _cache[url];
+  }
 
   Future<DownloadStatus> whenDownloadComplete(String url,
       {Duration timeout = const Duration(hours: 2)}) async {
     DownloadTask? task = getDownload(url);
+
     if (task != null) {
       return task.whenDownloadComplete(timeout: timeout);
     } else {
@@ -131,27 +146,36 @@ class DownloadManager {
   ValueNotifier<double> getBatchDownloadProgress(List<String> urls) {
     ValueNotifier<double> progress = ValueNotifier(0);
     var total = urls.length;
+
     if (total == 0) {
       return progress;
     }
+
     if (total == 1) {
       return getDownload(urls.first)?.progress ?? progress;
     }
+
     var progressMap = Map<String, double>();
+
     urls.forEach((url) {
       DownloadTask? task = getDownload(url);
+
       if (task != null) {
         progressMap[url] = 0.0;
+
         if (task.status.value.isCompleted) {
           progressMap[url] = 1.0;
           progress.value = progressMap.values.sum / total;
         }
+
         var progressListener;
         progressListener = () {
           progressMap[url] = task.progress.value;
           progress.value = progressMap.values.sum / total;
         };
+
         task.progress.addListener(progressListener);
+
         var listener;
         listener = () {
           if (task.status.value.isCompleted) {
@@ -161,46 +185,57 @@ class DownloadManager {
             task.progress.removeListener(progressListener);
           }
         };
+
         task.status.addListener(listener);
       } else {
         total--;
       }
     });
+
     return progress;
   }
 
   Future<List<DownloadTask?>?> whenBatchDownloadsComplete(List<String> urls,
       {Duration timeout = const Duration(hours: 2)}) async {
     var completer = Completer<List<DownloadTask?>?>();
+
     var completed = 0;
     var total = urls.length;
+
     urls.forEach((url) {
       DownloadTask? task = getDownload(url);
+
       if (task != null) {
         if (task.status.value.isCompleted) {
           completed++;
+
           if (completed == total) {
             completer.complete(getBatchDownloads(urls));
           }
         }
+
         var listener;
         listener = () {
           if (task.status.value.isCompleted) {
             completed++;
+
             if (completed == total) {
               completer.complete(getBatchDownloads(urls));
               task.status.removeListener(listener);
             }
           }
         };
+
         task.status.addListener(listener);
       } else {
         total--;
+
         if (total == 0) {
           completer.complete(null);
         }
       }
     });
+
     return completer.future.timeout(timeout);
   }
 
@@ -208,19 +243,22 @@ class DownloadManager {
     if (runningTasks == maxConcurrentTasks || _queue.isEmpty) {
       return;
     }
+
     while (_queue.isNotEmpty && runningTasks < maxConcurrentTasks) {
       runningTasks++;
       if (kDebugMode) {
         debugPrint('Concurrent workers: $runningTasks');
       }
       var currentRequest = _queue.removeFirst();
+
       download(
           currentRequest.url, currentRequest.path, currentRequest.cancelToken);
+
       await Future.delayed(Duration(milliseconds: 500), null);
     }
   }
 
-  /// This function is used to get the file name with extension from url
+  /// This function is used for get file name with extension from url
   String getFileNameFromUrl(String url) {
     return url.split('/').last;
   }

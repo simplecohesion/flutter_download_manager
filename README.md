@@ -8,9 +8,10 @@ Flutter Download Manager
 
 Overview
 ========
-Flutter Download Manager is a Cross-Platform file downloader with Parallel and Batch Download support. Manage download tasks by url and be notified of status and their progress. Pause, Cancel, Queue and Resume Downloads. 
 
-This package was made as I felt like there are no download managers in flutter, specially with desktop support. 
+Flutter Download Manager is a Cross-Platform file downloader with Parallel and Batch Download support. Manage download tasks by url and be notified of status and their progress. Pause, Cancel, Queue and Resume Downloads.
+
+This package was made as I felt like there are no download managers in flutter, specially with desktop support.
 
 ![alt Example](files/screenshot1.png "Download Manager Example")
 
@@ -26,16 +27,16 @@ This package was made as I felt like there are no download managers in flutter, 
 
 ## Platforms Supported
 
-- Linux
-- MacOS
-- Windows
-- Android 
-- iOS
+* Linux
+* MacOS
+* Windows
+* Android
+* iOS
 
 There are a few caveats about this package:
-- On desktop it saves the file in absolute or relative path.
-- On mobile it saves the file in absolute or relative path, but we should ask/ensure if the app has the required permissions.
-- It does not run in a background process, so when the dart application closes the manager will also shut down.
+* On desktop it saves the file in absolute or relative path.
+* On mobile it saves the file in absolute or relative path, but we should ask/ensure if the app has the required permissions.
+* It does not run in a background process, so when the dart application closes the manager will also shut down.
 
 ## Getting Started
 
@@ -45,7 +46,9 @@ In your `pubspec.yaml` file add:
 dependencies:
   flutter_download_manager: any
 ```
+
 Then, in your code import:
+
 ```dart
 import 'package:flutter_download_manager/flutter_download_manager.dart';
 ```
@@ -76,7 +79,6 @@ await dl.whenDownloadComplete(url4);
 
 ### Get Download Status
 
-
 ```dart
 DownloadTask? task = dl.getDownload(url4);
 
@@ -84,8 +86,8 @@ task?.status.addListener(() {
   print(task.status.value);
 });
 ```
-### Get Download Progress
 
+### Get Download Progress
 
 ```dart
 DownloadTask? task = dl.getDownload(url4);
@@ -173,6 +175,7 @@ urls.add(url);
 
 dl.cancelDownloads(urls);
 ```
+
 ### Get Batch Download Progress
 
 ```dart
