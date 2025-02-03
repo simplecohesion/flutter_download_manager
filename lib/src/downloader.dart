@@ -3,6 +3,8 @@ import 'dart:collection';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_download_manager/src/download_request.dart';
+import 'package:flutter_download_manager/src/download_task.dart';
 import 'download_manager_platform.dart'; // <-- New platform interface import
 
 // Removed the conditional import of web/native implementations

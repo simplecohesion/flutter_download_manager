@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_download_manager/src/download_manager_interface.dart';
 import 'download_task.dart';
-import 'download_request.dart';
 import 'native_download_manager.dart'; // Default (native) implementation
 
 abstract class DownloadManagerPlatform {
@@ -21,10 +21,10 @@ abstract class DownloadManagerPlatform {
   // You can add more abstract methods matching your API here.
 
   // Default instance (set to native download manager)
-  static DownloadManagerPlatform _instance = NativeDownloadManager();
+  static DownloadManagerInterface _instance = NativeDownloadManager();
 
-  static DownloadManagerPlatform get instance => _instance;
-  static set instance(DownloadManagerPlatform instance) {
+  static DownloadManagerInterface get instance => _instance;
+  static set instance(DownloadManagerInterface instance) {
     _instance = instance;
   }
 }

@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:html' as html;
+
+import 'package:flutter/services.dart';
+import 'package:flutter_download_manager/src/download_manager_platform.dart';
+import 'package:flutter_download_manager/src/web_download_manager.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'src/web_download_manager.dart';
-import 'src/download_manager_platform.dart';
 
 /// Web plugin implementation.
 class FlutterDownloadManagerWeb extends WebDownloadManager
