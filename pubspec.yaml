@@ -7,14 +7,14 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  collection: ^1.17.1
+  dio: ^5.0.2
+  file_system_access_api: ^2.0.0
   flutter:
     sdk: flutter
-  dio: ^5.0.2
-  collection: ^1.17.1
-  file_system_access_api: ^2.0.0
   universal_io: ^2.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  lints: ^5.0.0
+  very_good_analysis: ^7.0.0

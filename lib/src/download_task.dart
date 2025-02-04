@@ -23,7 +23,7 @@ class DownloadTask {
 
     void Function()? listener;
     listener = () {
-      print('listener: $status');
+      debugPrint('listener: $status');
       if (status.value.isCompleted) {
         completer.complete(status.value);
         status.removeListener(listener!);
