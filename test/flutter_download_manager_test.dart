@@ -69,18 +69,23 @@ void main() {
   });
 
   tearDownAll(() {
-    // try {
-    //   Directory("./testDownloads1").delete(recursive: true);
-    //   Directory("./testDownloads2").delete(recursive: true);
-    //   Directory("./testDownloads3").delete(recursive: true);
-    //   Directory("./testDownloads4").delete(recursive: true);
-    //   Directory("./testDownloads5").delete(recursive: true);
-    // } catch (e) {}
+    try {
+      directory1.deleteSync(recursive: true);
+      directory2.deleteSync(recursive: true);
+      directory3.deleteSync(recursive: true);
+      directory4.deleteSync(recursive: true);
+      directory5.deleteSync(recursive: true);
+      directory6.deleteSync(recursive: true);
+      directory7.deleteSync(recursive: true);
+      directory8.deleteSync(recursive: true);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   });
 
   group('download manager', () {
     test('single download with progress', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       final task = await dl.addDownload(url1, directory1.path);
 
@@ -103,7 +108,7 @@ void main() {
     });
 
     test('cancel download', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       final task = await dl.addDownload(
         url1,
@@ -117,7 +122,7 @@ void main() {
     });
 
     test('pause and resume download', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       await dl.addDownload(url3, directory3.path);
 
@@ -133,7 +138,7 @@ void main() {
     });
 
     test('handle empty url', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       const url = '';
       await dl.addDownload(
@@ -150,7 +155,7 @@ void main() {
     });
 
     test('download in sequence', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       await dl.addDownload(
         url1,
@@ -169,7 +174,7 @@ void main() {
     });
 
     test('download in batch', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       final urls = <String>[];
       urls.add(url1);
@@ -189,7 +194,7 @@ void main() {
     });
 
     test('cancel a batched download', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       final urls = <String>[];
       urls.add(url1);
@@ -209,7 +214,7 @@ void main() {
     });
 
     test('cancel a single item in a batched download', () async {
-      final dl = DownloadManager();
+      final dl = DownloadManager.instance;
 
       final urls = <String>[];
       urls.add(url1);
