@@ -1,10 +1,15 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_download_manager/src/download_manager.dart';
 import 'package:flutter_download_manager/src/download_task.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
 
 class WebDownloadPlatform implements DownloadPlatformInterface {
-  WebDownloadPlatform(this.dio);
+  WebDownloadPlatform({
+    required this.dio,
+    required this.manager,
+  });
   final Dio dio;
+  final DownloadManager manager;
 
   @override
   Future<void> download({
@@ -12,15 +17,12 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
     required String savePath,
     CancelToken? cancelToken,
     bool forceDownload = false,
-  }) async {}
-
-  @override
-  Future<DownloadTask?> addDownload(String url, String localPath) async {
-    return null;
+  }) async {
+    throw UnimplementedError('This is a stub implementation');
   }
 
   @override
-  String getFileNameFromUrl(String url) {
-    return '';
+  Future<DownloadTask?> addDownload(String url, String localPath) async {
+    throw UnimplementedError('This is a stub implementation');
   }
 }

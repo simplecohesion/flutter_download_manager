@@ -10,32 +10,31 @@ import 'package:flutter_download_manager/src/platform/download_platform.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
 
 class DownloadManager {
-  factory DownloadManager({
+  DownloadManager._internal({
     int? maxConcurrentTasks,
     Dio? dio,
   }) {
     if (maxConcurrentTasks != null) {
-      _dm.maxConcurrentTasks = maxConcurrentTasks;
+      this.maxConcurrentTasks = maxConcurrentTasks;
     }
-
-    _dm.dio = dio ?? Dio();
-
-    return _dm;
+    if (dio != null) {
+      this.dio = dio;
+    }
+    _platform = createDownloadPlatform(this.dio, this);
   }
 
-  DownloadManager._internal() {
-    _platform = createDownloadPlatform(dio);
-  }
-  final Map<String, DownloadTask> _cache = <String, DownloadTask>{};
-  final Queue<DownloadRequest> _queue = Queue();
+  static final DownloadManager instance = DownloadManager._internal();
+
+  final Map<String, DownloadTask> cache = <String, DownloadTask>{};
+  final Queue<DownloadRequest> queue = Queue();
+
   Dio dio = Dio();
+
   static const partialExtension = '.partial';
   static const tempExtension = '.temp';
 
   int maxConcurrentTasks = 2;
   int runningTasks = 0;
-
-  static final DownloadManager _dm = DownloadManager._internal();
 
   late final DownloadPlatformInterface _platform;
 
@@ -69,16 +68,34 @@ class DownloadManager {
   void setStatus(DownloadTask? task, DownloadStatus status) {
     if (task != null) {
       task.status.value = status;
-
-      // tasks.add(task);
-      // if (status.isCompleted) {
-      //   disposeNotifiers(task);
-      // }
     }
   }
 
   Future<DownloadTask?> addDownload(String url, String localPath) async {
     return _platform.addDownload(url, localPath);
+  }
+
+  Future<DownloadTask> addDownloadRequest(
+    DownloadRequest downloadRequest,
+  ) async {
+    if (cache[downloadRequest.url] != null) {
+      if (!cache[downloadRequest.url]!.status.value.isCompleted &&
+          cache[downloadRequest.url]!.request == downloadRequest) {
+        // Do nothing
+        return cache[downloadRequest.url]!;
+      } else {
+        queue.remove(cache[downloadRequest.url]?.request);
+      }
+    }
+
+    queue.add(DownloadRequest(downloadRequest.url, downloadRequest.path));
+    final task = DownloadTask(queue.last);
+
+    cache[downloadRequest.url] = task;
+
+    unawaited(startExecution());
+
+    return task;
   }
 
   Future<void> pauseDownload(String url) async {
@@ -87,14 +104,14 @@ class DownloadManager {
     setStatus(task, DownloadStatus.paused);
     task.request.cancelToken.cancel();
 
-    _queue.remove(task.request);
+    queue.remove(task.request);
   }
 
   Future<void> cancelDownload(String url) async {
     debugPrint('Cancel Download');
     final task = getDownload(url)!;
     setStatus(task, DownloadStatus.canceled);
-    _queue.remove(task.request);
+    queue.remove(task.request);
     task.request.cancelToken.cancel();
   }
 
@@ -103,15 +120,15 @@ class DownloadManager {
     final task = getDownload(url)!;
     setStatus(task, DownloadStatus.downloading);
     task.request.cancelToken = CancelToken();
-    _queue.add(task.request);
+    queue.add(task.request);
 
-    unawaited(_startExecution());
+    unawaited(startExecution());
   }
 
   Future<void> removeDownload(String url) async {
-    if (_cache.containsKey(url)) {
+    if (cache.containsKey(url)) {
       await cancelDownload(url);
-      _cache.remove(url);
+      cache.remove(url);
       final task = getDownload(url);
       if (task != null) {
         disposeNotifiers(task);
@@ -121,8 +138,8 @@ class DownloadManager {
 
   // Do not immediately call getDownload After addDownload, rather use the returned DownloadTask from addDownload
   DownloadTask? getDownload(String url) {
-    if (_cache.containsKey(url)) {
-      return _cache[url];
+    if (cache.containsKey(url)) {
+      return cache[url];
     }
     return null;
   }
@@ -141,7 +158,7 @@ class DownloadManager {
   }
 
   List<DownloadTask> getAllDownloads() {
-    return _cache.values.toList();
+    return cache.values.toList();
   }
 
   // Batch Download Mechanism
@@ -150,7 +167,7 @@ class DownloadManager {
   }
 
   List<DownloadTask?> getBatchDownloads(List<String> urls) {
-    return urls.map((e) => _cache[e]).toList();
+    return urls.map((e) => cache[e]).toList();
   }
 
   Future<void> pauseBatchDownloads(List<String> urls) async {
@@ -263,17 +280,17 @@ class DownloadManager {
     return completer.future.timeout(timeout);
   }
 
-  Future<void> _startExecution() async {
-    if (runningTasks == maxConcurrentTasks || _queue.isEmpty) {
+  Future<void> startExecution() async {
+    if (runningTasks == maxConcurrentTasks || queue.isEmpty) {
       return;
     }
 
-    while (_queue.isNotEmpty && runningTasks < maxConcurrentTasks) {
+    while (queue.isNotEmpty && runningTasks < maxConcurrentTasks) {
       runningTasks++;
 
       debugPrint('Concurrent workers: $runningTasks');
 
-      final currentRequest = _queue.removeFirst();
+      final currentRequest = queue.removeFirst();
 
       unawaited(
         download(
@@ -286,9 +303,13 @@ class DownloadManager {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
   }
+}
 
-  /// This function is used for get file name with extension from url
-  String getFileNameFromUrl(String url) {
-    return _platform.getFileNameFromUrl(url);
+String getFileNameFromUrl(String url) {
+  try {
+    final uri = Uri.parse(url);
+    return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : url;
+  } catch (e) {
+    return url;
   }
 }

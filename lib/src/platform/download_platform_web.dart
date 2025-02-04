@@ -2,39 +2,59 @@ import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import 'package:dio/dio.dart';
-import 'package:file_system_access_api/file_system_access_api.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_download_manager/flutter_download_manager.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
+import 'package:flutter_download_manager/src/platform/opfs_helpers.dart';
 
 class WebDownloadPlatform implements DownloadPlatformInterface {
-  WebDownloadPlatform(this.dio) {
-    _initializeFileSystem();
-  }
-  final Dio dio;
-  FileSystemDirectoryHandle? _root;
+  WebDownloadPlatform({
+    required this.dio,
+    required this.manager,
+  });
 
-  Future<void> _initializeFileSystem() async {
-    _root = await html.window.navigator.storage?.getDirectory();
-    if (_root == null) {
-      throw Exception('Failed to initialize Origin Private File System');
-    }
-  }
+  final Dio dio;
+  final DownloadManager manager;
+
+  static const partialExtension = '.partial';
+  static const tempExtension = '.temp';
 
   @override
   Future<DownloadTask?> addDownload(String url, String localPath) async {
-    if (_root == null) await _initializeFileSystem();
-
     if (url.isEmpty) return null;
 
-    final fileName = getFileNameFromUrl(url);
-    // Create or get file handle from OPFS
-    final fileHandle = await _root!.getFileHandle(fileName, create: true);
+    try {
+      final fileName = getFileNameFromUrl(url);
 
-    // Create download request with web-specific path handling
-    final request = DownloadRequest(url, fileName);
-    return DownloadTask(request);
+      return manager.addDownloadRequest(DownloadRequest(url, fileName));
+    } catch (e) {
+      return null;
+    }
   }
+
+  // Future<DownloadTask> _addDownloadRequest(
+  //   DownloadRequest downloadRequest,
+  // ) async {
+  //   if (manager.cache[downloadRequest.url] != null) {
+  //     if (!manager.cache[downloadRequest.url]!.status.value.isCompleted &&
+  //         manager.cache[downloadRequest.url]!.request == downloadRequest) {
+  //       // Do nothing
+  //       return manager.cache[downloadRequest.url]!;
+  //     } else {
+  //       manager.queue.remove(manager.cache[downloadRequest.url]?.request);
+  //     }
+  //   }
+
+  //   manager.queue
+  //       .add(DownloadRequest(downloadRequest.url, downloadRequest.path));
+  //   final task = DownloadTask(manager.queue.last);
+
+  //   manager.cache[downloadRequest.url] = task;
+
+  //   unawaited(manager.startExecution());
+
+  //   return task;
+  // }
 
   @override
   Future<void> download({
@@ -43,37 +63,42 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
     CancelToken? cancelToken,
     bool forceDownload = false,
   }) async {
-    if (_root == null) await _initializeFileSystem();
+    final task = manager.getDownload(url);
+    if (task == null || task.status.value == DownloadStatus.canceled) {
+      return;
+    }
+    manager.setStatus(task, DownloadStatus.downloading);
 
-    final fileName = getFileNameFromUrl(savePath);
-    final fileHandle = await _root!.getFileHandle(fileName, create: true);
+    debugPrint('download: $url');
 
     try {
-      // Download file using Dio
-      final response = await dio.get(
+      final response = await dio.get<Uint8List>(
         url,
         options: Options(responseType: ResponseType.bytes),
         cancelToken: cancelToken,
       );
 
-      // Write to OPFS
-      final writable = await fileHandle.createWritable();
-      // await writable.writeAsBytes(response.data);
-      await writable.close();
-    } catch (e) {
-      debugPrint('Error downloading file: $e');
-      rethrow;
-    }
-  }
+      final data = response.data;
 
-  @override
-  String getFileNameFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : url;
+      if (response.statusCode == html.HttpStatus.ok && data != null) {
+        await OpfsHelper.writeFile(data, savePath);
+        manager.setStatus(task, DownloadStatus.completed);
+      } else {
+        manager.setStatus(task, DownloadStatus.failed);
+      }
     } catch (e) {
-      debugPrint('Failed to parse URL: $e');
-      return url;
+      if (task.status.value != DownloadStatus.canceled &&
+          task.status.value != DownloadStatus.paused) {
+        manager.setStatus(task, DownloadStatus.failed);
+        rethrow;
+      } else if (task.status.value == DownloadStatus.paused) {
+        manager.setStatus(task, DownloadStatus.paused);
+      }
+    } finally {
+      manager.runningTasks--;
+      if (manager.queue.isNotEmpty) {
+        unawaited(manager.startExecution());
+      }
     }
   }
 }
