@@ -47,20 +47,19 @@ class DownloadManager {
     bool forceDownload = false,
   }) async {
     late String partialFilePath;
-
     late File partialFile;
+
+    final task = getDownload(url);
+    if (task == null || task.status.value == DownloadStatus.canceled) {
+      return;
+    }
+    setStatus(task, DownloadStatus.downloading);
+
+    debugPrint('download: $url');
+    partialFilePath = '$savePath$partialExtension';
+    partialFile = File(partialFilePath);
+
     try {
-      final task = getDownload(url);
-
-      if (task == null || task.status.value == DownloadStatus.canceled) {
-        return;
-      }
-      setStatus(task, DownloadStatus.downloading);
-
-      debugPrint('download: $url');
-      partialFilePath = savePath + partialExtension;
-      partialFile = File(partialFilePath);
-
       final partialFileExist = partialFile.existsSync();
 
       if (partialFileExist) {
@@ -82,9 +81,9 @@ class DownloadManager {
 
         if (response.statusCode == HttpStatus.partialContent) {
           final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-          final f0 = File(partialFilePath + tempExtension);
-          await ioSink.addStream(f0.openRead());
-          await f0.delete();
+          final tempFile = File(partialFilePath + tempExtension);
+          await ioSink.addStream(tempFile.openRead());
+          await tempFile.delete();
           await ioSink.close();
           await partialFile.rename(savePath);
 
@@ -105,30 +104,23 @@ class DownloadManager {
         }
       }
     } catch (e) {
-      final task = getDownload(url)!;
       if (task.status.value != DownloadStatus.canceled &&
           task.status.value != DownloadStatus.paused) {
         setStatus(task, DownloadStatus.failed);
-        runningTasks--;
-
-        if (_queue.isNotEmpty) {
-          unawaited(_startExecution());
-        }
         rethrow;
       } else if (task.status.value == DownloadStatus.paused) {
         final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-        final f = File(partialFilePath + tempExtension);
-        if (f.existsSync()) {
-          await ioSink.addStream(f.openRead());
+        final tempFile = File(partialFilePath + tempExtension);
+        if (tempFile.existsSync()) {
+          await ioSink.addStream(tempFile.openRead());
         }
         await ioSink.close();
       }
-    }
-
-    runningTasks--;
-
-    if (_queue.isNotEmpty) {
-      unawaited(_startExecution());
+    } finally {
+      runningTasks--;
+      if (_queue.isNotEmpty) {
+        unawaited(_startExecution());
+      }
     }
   }
 
@@ -393,13 +385,13 @@ class DownloadManager {
 
   /// This function is used for get file name with extension from url
   String getFileNameFromUrl(String url) {
-    if (url.contains('?')) {
-      final filename = url.split('?').first.split('/').last;
-      debugPrint('filename: $filename');
-      return filename;
+    try {
+      final uri = Uri.parse(url);
+      // Return the last segment if available; else fall back to the full URL.
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : url;
+    } catch (e) {
+      debugPrint('Failed to parse URL: $e');
+      return url;
     }
-    final filename = url.split('/').last;
-    debugPrint('filename: $filename');
-    return filename;
   }
 }
