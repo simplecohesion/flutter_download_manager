@@ -2,6 +2,7 @@ import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import 'package:dio/dio.dart';
+import 'package:file_system_access_api/file_system_access_api.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_download_manager/flutter_download_manager.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
@@ -15,46 +16,6 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
 
   final Dio dio;
   final DownloadManager manager;
-
-  static const partialExtension = '.partial';
-  static const tempExtension = '.temp';
-
-  @override
-  Future<DownloadTask?> addDownload(String url, String localPath) async {
-    if (url.isEmpty) return null;
-
-    try {
-      final fileName = getFileNameFromUrl(url);
-
-      return manager.addDownloadRequest(DownloadRequest(url, fileName));
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Future<DownloadTask> _addDownloadRequest(
-  //   DownloadRequest downloadRequest,
-  // ) async {
-  //   if (manager.cache[downloadRequest.url] != null) {
-  //     if (!manager.cache[downloadRequest.url]!.status.value.isCompleted &&
-  //         manager.cache[downloadRequest.url]!.request == downloadRequest) {
-  //       // Do nothing
-  //       return manager.cache[downloadRequest.url]!;
-  //     } else {
-  //       manager.queue.remove(manager.cache[downloadRequest.url]?.request);
-  //     }
-  //   }
-
-  //   manager.queue
-  //       .add(DownloadRequest(downloadRequest.url, downloadRequest.path));
-  //   final task = DownloadTask(manager.queue.last);
-
-  //   manager.cache[downloadRequest.url] = task;
-
-  //   unawaited(manager.startExecution());
-
-  //   return task;
-  // }
 
   @override
   Future<void> download({
@@ -100,5 +61,40 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
         unawaited(manager.startExecution());
       }
     }
+  }
+
+  @override
+  Future<void> deleteFile(String path) async {
+    final fileHandle = await OpfsHelper.getFileHandle(path);
+    if (fileHandle != null) {
+      await fileHandle.remove();
+    }
+  }
+
+  @override
+  Future<void> createDirectory(String path) async {
+    await OpfsHelper.getDirectoryHandle(path, create: true);
+  }
+
+  @override
+  Future<void> deleteDirectory(String path) async {
+    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
+    await directoryHandle.remove(recursive: true);
+  }
+
+  @override
+  Future<List<String>> getFilesInDirectory(String path) async {
+    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
+
+    final files = await directoryHandle.values
+        .where((handle) => handle.kind == FileSystemKind.file)
+        .cast<FileSystemFileHandle>()
+        .asyncMap(
+          (fileHandle) async =>
+              html.Url.createObjectUrlFromBlob(await fileHandle.getFile()),
+        )
+        .toList();
+
+    return files;
   }
 }

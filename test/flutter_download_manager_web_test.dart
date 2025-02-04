@@ -1,6 +1,7 @@
 // ignore_for_file: library_annotations, prefer_asserts_with_message, cascade_invocations
 
 @Timeout(Duration(seconds: 60))
+@TestOn('chrome')
 
 import 'dart:io';
 

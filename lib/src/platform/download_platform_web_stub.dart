@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_download_manager/src/download_manager.dart';
-import 'package:flutter_download_manager/src/download_task.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
 
 class WebDownloadPlatform implements DownloadPlatformInterface {
@@ -22,7 +21,22 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
   }
 
   @override
-  Future<DownloadTask?> addDownload(String url, String localPath) async {
+  Future<void> deleteFile(String path) async {
+    throw UnimplementedError('This is a stub implementation');
+  }
+
+  @override
+  Future<void> createDirectory(String path) async {
+    throw UnimplementedError('This is a stub implementation');
+  }
+
+  @override
+  Future<void> deleteDirectory(String path) async {
+    throw UnimplementedError('This is a stub implementation');
+  }
+
+  @override
+  Future<List<String>> getFilesInDirectory(String path) async {
     throw UnimplementedError('This is a stub implementation');
   }
 }

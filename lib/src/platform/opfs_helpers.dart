@@ -6,21 +6,24 @@ import 'package:flutter/foundation.dart';
 import 'package:universal_io/io.dart';
 
 class OpfsHelper {
-  static Future<FileSystemDirectoryHandle?> getDirectoryHandle({
-    String? localPath,
-  }) async {
+  static Future<FileSystemDirectoryHandle> getRootDirectoryHandle() async {
     final directoryHandle = await html.window.navigator.storage?.getDirectory();
     if (directoryHandle == null) {
       throw UnsupportedError('File System Access API is not supported.');
     }
-    if (localPath != null) {
-      return directoryHandle.getDirectoryHandle(localPath);
-    }
     return directoryHandle;
   }
 
-  static Future<FileSystemFileHandle?> getFileHandle(String localPath) async {
-    final parts = localPath.split(Platform.pathSeparator);
+  static Future<FileSystemDirectoryHandle> getDirectoryHandle(
+    String path, {
+    bool create = false,
+  }) async {
+    final rootHandle = await getRootDirectoryHandle();
+    return rootHandle.getDirectoryHandle(path, create: create);
+  }
+
+  static Future<FileSystemFileHandle?> getFileHandle(String path) async {
+    final parts = path.split(Platform.pathSeparator);
 
     final directoryPath =
         parts.take(parts.length - 1).join(Platform.pathSeparator);
@@ -28,19 +31,14 @@ class OpfsHelper {
     // final fileName = parts.last;
     // final directoryName = parts.length > 1 ? parts.first : null;
 
-    final directoryHandle = await getDirectoryHandle(localPath: directoryPath);
-    if (directoryHandle == null) {
-      return null;
-    }
+    final directoryHandle = await getDirectoryHandle(directoryPath);
+
     return directoryHandle.getFileHandle(fileName, create: true);
   }
 
   static Future<String?> getPathToLocalFile(String filename) async {
     try {
-      final rootDirectoryHandle = await getDirectoryHandle();
-      if (rootDirectoryHandle == null) {
-        throw UnsupportedError('File System Access API is not supported.');
-      }
+      final rootDirectoryHandle = await getRootDirectoryHandle();
 
       final fileHandle = await rootDirectoryHandle.getFileHandle(filename);
       final file = await fileHandle.getFile();
@@ -81,6 +79,7 @@ class OpfsHelper {
 ///
 // @JS()
 // @staticInterop
+
 // class FileSystemWritableFileStream {}
 
 // extension FileSystemWritableFileStreamExtension

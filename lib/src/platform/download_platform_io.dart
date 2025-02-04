@@ -15,46 +15,6 @@ class IODownloadPlatform implements DownloadPlatformInterface {
   final Dio dio;
   final DownloadManager manager;
 
-  static const partialExtension = '.partial';
-  static const tempExtension = '.temp';
-
-  @override
-  Future<DownloadTask?> addDownload(String url, String localPath) async {
-    if (url.isEmpty) return null;
-
-    final savedDir = localPath.isEmpty ? '.' : localPath;
-    final isDirectory = Directory(savedDir).existsSync();
-    final downloadFilename = isDirectory
-        ? savedDir + Platform.pathSeparator + getFileNameFromUrl(url)
-        : savedDir;
-
-    return manager.addDownloadRequest(DownloadRequest(url, downloadFilename));
-  }
-
-  // Future<DownloadTask> _addDownloadRequest(
-  //   DownloadRequest downloadRequest,
-  // ) async {
-  //   if (manager.cache[downloadRequest.url] != null) {
-  //     if (!manager.cache[downloadRequest.url]!.status.value.isCompleted &&
-  //         manager.cache[downloadRequest.url]!.request == downloadRequest) {
-  //       // Do nothing
-  //       return manager.cache[downloadRequest.url]!;
-  //     } else {
-  //       manager.queue.remove(manager.cache[downloadRequest.url]?.request);
-  //     }
-  //   }
-
-  //   manager.queue
-  //       .add(DownloadRequest(downloadRequest.url, downloadRequest.path));
-  //   final task = DownloadTask(manager.queue.last);
-
-  //   manager.cache[downloadRequest.url] = task;
-
-  //   unawaited(manager.startExecution());
-
-  //   return task;
-  // }
-
   @override
   Future<void> download({
     required String url,
@@ -72,7 +32,7 @@ class IODownloadPlatform implements DownloadPlatformInterface {
     manager.setStatus(task, DownloadStatus.downloading);
 
     debugPrint('download: $url');
-    partialFilePath = '$savePath$partialExtension';
+    partialFilePath = '$savePath${manager.partialExtension}';
     partialFile = File(partialFilePath);
 
     try {
@@ -87,7 +47,7 @@ class IODownloadPlatform implements DownloadPlatformInterface {
 
         final response = await dio.download(
           url,
-          partialFilePath + tempExtension,
+          partialFilePath + manager.tempExtension,
           onReceiveProgress: manager.createCallback(url, partialFileLength),
           options: Options(
             headers: {HttpHeaders.rangeHeader: 'bytes=$partialFileLength-'},
@@ -97,7 +57,7 @@ class IODownloadPlatform implements DownloadPlatformInterface {
 
         if (response.statusCode == HttpStatus.partialContent) {
           final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-          final tempFile = File(partialFilePath + tempExtension);
+          final tempFile = File(partialFilePath + manager.tempExtension);
           await ioSink.addStream(tempFile.openRead());
           await tempFile.delete();
           await ioSink.close();
@@ -126,7 +86,7 @@ class IODownloadPlatform implements DownloadPlatformInterface {
         rethrow;
       } else if (task.status.value == DownloadStatus.paused) {
         final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-        final tempFile = File(partialFilePath + tempExtension);
+        final tempFile = File(partialFilePath + manager.tempExtension);
         if (tempFile.existsSync()) {
           await ioSink.addStream(tempFile.openRead());
         }
@@ -138,5 +98,50 @@ class IODownloadPlatform implements DownloadPlatformInterface {
         unawaited(manager.startExecution());
       }
     }
+  }
+
+  @override
+  Future<void> deleteFile(String path) async {
+    if (path.isEmpty) {
+      return;
+    }
+    final file = File(path);
+    if (file.existsSync()) {
+      file.deleteSync();
+    }
+  }
+
+  @override
+  Future<void> createDirectory(String path) async {
+    if (path.isEmpty) {
+      return;
+    }
+    final directory = Directory(path);
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> deleteDirectory(String path) async {
+    if (path.isEmpty) {
+      return;
+    }
+    final directory = Directory(path);
+    if (directory.existsSync()) {
+      directory.deleteSync(recursive: true);
+    }
+  }
+
+  @override
+  Future<List<String>> getFilesInDirectory(String path) async {
+    if (path.isEmpty) {
+      return [];
+    }
+    final directory = Directory(path);
+    if (!directory.existsSync()) {
+      return [];
+    }
+    return directory.listSync().map((e) => e.path).toList();
   }
 }

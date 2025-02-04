@@ -30,8 +30,8 @@ class DownloadManager {
 
   Dio dio = Dio();
 
-  static const partialExtension = '.partial';
-  static const tempExtension = '.temp';
+  final partialExtension = '.partial';
+  final tempExtension = '.temp';
 
   int maxConcurrentTasks = 2;
   int runningTasks = 0;
@@ -71,11 +71,24 @@ class DownloadManager {
     }
   }
 
-  Future<DownloadTask?> addDownload(String url, String localPath) async {
-    return _platform.addDownload(url, localPath);
+  Future<DownloadTask> addDownload(String url, String localPath) async {
+    if (url.isEmpty) {
+      throw ArgumentError('url cannot be empty');
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      throw ArgumentError('Invalid URL: $url');
+    }
+
+    if (localPath.isEmpty) {
+      throw ArgumentError('localPath cannot be empty');
+    }
+
+    return _addDownload(DownloadRequest(url, localPath));
   }
 
-  Future<DownloadTask> addDownloadRequest(
+  Future<DownloadTask> _addDownload(
     DownloadRequest downloadRequest,
   ) async {
     if (cache[downloadRequest.url] != null) {
@@ -161,28 +174,23 @@ class DownloadManager {
     return cache.values.toList();
   }
 
-  // Batch Download Mechanism
-  Future<void> addBatchDownloads(List<String> urls, String savedDir) async {
-    await Future.wait(urls.map((url) => addDownload(url, savedDir)));
-  }
-
-  List<DownloadTask?> getBatchDownloads(List<String> urls) {
+  List<DownloadTask?> getDownloads(List<String> urls) {
     return urls.map((e) => cache[e]).toList();
   }
 
-  Future<void> pauseBatchDownloads(List<String> urls) async {
+  Future<void> pauseDownloads(List<String> urls) async {
     await Future.wait(urls.map(pauseDownload));
   }
 
-  Future<void> cancelBatchDownloads(List<String> urls) async {
+  Future<void> cancelDownloads(List<String> urls) async {
     await Future.wait(urls.map(cancelDownload));
   }
 
-  Future<void> resumeBatchDownloads(List<String> urls) async {
+  Future<void> resumeDownloads(List<String> urls) async {
     await Future.wait(urls.map(resumeDownload));
   }
 
-  ValueNotifier<double> getBatchDownloadProgress(List<String> urls) {
+  ValueNotifier<double> getDownloadsProgress(List<String> urls) {
     final progress = ValueNotifier<double>(0);
     var total = urls.length;
 
@@ -234,7 +242,7 @@ class DownloadManager {
     return progress;
   }
 
-  Future<List<DownloadTask?>?> whenBatchDownloadsComplete(
+  Future<List<DownloadTask?>?> whenDownloadsComplete(
     List<String> urls, {
     Duration timeout = const Duration(hours: 2),
   }) {
@@ -251,7 +259,7 @@ class DownloadManager {
           completed++;
 
           if (completed == total) {
-            completer.complete(getBatchDownloads(urls));
+            completer.complete(getDownloads(urls));
           }
         }
 
@@ -261,7 +269,7 @@ class DownloadManager {
             completed++;
 
             if (completed == total) {
-              completer.complete(getBatchDownloads(urls));
+              completer.complete(getDownloads(urls));
               task.status.removeListener(listener);
             }
           }
@@ -303,13 +311,20 @@ class DownloadManager {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
   }
-}
 
-String getFileNameFromUrl(String url) {
-  try {
-    final uri = Uri.parse(url);
-    return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : url;
-  } catch (e) {
-    return url;
+  Future<void> deleteFile(String path) async {
+    return _platform.deleteFile(path);
+  }
+
+  Future<void> createDirectory(String path) async {
+    return _platform.createDirectory(path);
+  }
+
+  Future<void> deleteDirectory(String path) async {
+    return _platform.deleteDirectory(path);
+  }
+
+  Future<List<String>> getFilesInDirectory(String path) {
+    return _platform.getFilesInDirectory(path);
   }
 }
