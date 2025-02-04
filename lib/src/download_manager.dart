@@ -53,9 +53,7 @@ class DownloadManager {
       }
       setStatus(task, DownloadStatus.downloading);
 
-      if (kDebugMode) {
-        print(url);
-      }
+      debugPrint('download: $url');
       partialFilePath = savePath + partialExtension;
       partialFile = File(partialFilePath);
 
@@ -63,7 +61,7 @@ class DownloadManager {
 
       if (partialFileExist) {
         if (kDebugMode) {
-          print("Partial File Exists");
+          debugPrint("Partial File Exists");
         }
 
         var partialFileLength = await partialFile.length();
@@ -181,9 +179,7 @@ class DownloadManager {
   }
 
   Future<void> pauseDownload(String url) async {
-    if (kDebugMode) {
-      print("Pause Download");
-    }
+    debugPrint("Pause Download");
     var task = getDownload(url)!;
     setStatus(task, DownloadStatus.paused);
     task.request.cancelToken.cancel();
@@ -192,9 +188,7 @@ class DownloadManager {
   }
 
   Future<void> cancelDownload(String url) async {
-    if (kDebugMode) {
-      print("Cancel Download");
-    }
+    debugPrint("Cancel Download");
     var task = getDownload(url)!;
     setStatus(task, DownloadStatus.canceled);
     _queue.remove(task.request);
@@ -202,9 +196,7 @@ class DownloadManager {
   }
 
   Future<void> resumeDownload(String url) async {
-    if (kDebugMode) {
-      print("Resume Download");
-    }
+    debugPrint("Resume Download");
     var task = getDownload(url)!;
     setStatus(task, DownloadStatus.downloading);
     task.request.cancelToken = CancelToken();
@@ -371,9 +363,9 @@ class DownloadManager {
 
     while (_queue.isNotEmpty && runningTasks < maxConcurrentTasks) {
       runningTasks++;
-      if (kDebugMode) {
-        print('Concurrent workers: $runningTasks');
-      }
+
+      debugPrint('Concurrent workers: $runningTasks');
+
       var currentRequest = _queue.removeFirst();
 
       download(
@@ -388,10 +380,10 @@ class DownloadManager {
     if (url.contains('?')) {
       final filename = url.split('?').first.split('/').last;
       print('filename: $filename');
-      return filename.contains('.') ? filename : filename + '.mp4';
+      return filename;
     }
     final filename = url.split('/').last;
     print('filename: $filename');
-    return filename.contains('.') ? filename : filename + '.mp4';
+    return filename;
   }
 }

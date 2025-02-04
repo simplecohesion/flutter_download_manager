@@ -1,15 +1,16 @@
+// ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
+
 import 'package:dio/dio.dart';
 
 class DownloadRequest {
-  final String url;
-  final String path;
-  var cancelToken = CancelToken();
-  var forceDownload = false;
-
   DownloadRequest(
     this.url,
     this.path,
   );
+  final String url;
+  final String path;
+  CancelToken cancelToken = CancelToken();
+  bool forceDownload = false;
 
   @override
   bool operator ==(Object other) =>

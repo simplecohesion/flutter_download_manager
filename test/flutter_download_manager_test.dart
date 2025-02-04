@@ -75,144 +75,146 @@ void main() {
     // } catch (e) {}
   });
 
-  test('single download with progress', () async {
-    var dl = DownloadManager();
+  group('download manager', () {
+    test('single download with progress', () async {
+      var dl = DownloadManager();
 
-    DownloadTask? task = await dl.addDownload(url1, directory1.path);
+      DownloadTask? task = await dl.addDownload(url1, directory1.path);
 
-    final List<DownloadStatus> statuses = [];
-    final List<double> progresses = [];
+      final List<DownloadStatus> statuses = [];
+      final List<double> progresses = [];
 
-    task?.status.addListener(() {
-      statuses.add(task.status.value);
+      task?.status.addListener(() {
+        statuses.add(task.status.value);
+      });
+
+      task?.progress.addListener(() {
+        progresses.add(task.progress.value);
+      });
+
+      final status = await dl.whenDownloadComplete(url1);
+      assert(status == DownloadStatus.completed);
+
+      assert(statuses.contains(DownloadStatus.completed));
+      assert(progresses.contains(1.0));
     });
 
-    task?.progress.addListener(() {
-      progresses.add(task.progress.value);
+    test('cancel download', () async {
+      var dl = DownloadManager();
+
+      DownloadTask? task = await dl.addDownload(
+          url1, directory2.path + Platform.pathSeparator + fileName1);
+
+      await Future.delayed(Duration(seconds: 1), null);
+      await dl.cancelDownload(url1);
+
+      assert(task?.status.value == DownloadStatus.canceled);
     });
 
-    final status = await dl.whenDownloadComplete(url1);
-    assert(status == DownloadStatus.completed);
+    test('pause and resume download', () async {
+      var dl = DownloadManager();
 
-    assert(statuses.contains(DownloadStatus.completed));
-    assert(progresses.contains(1.0));
-  });
+      await dl.addDownload(url3, directory3.path);
 
-  test('cancel download', () async {
-    var dl = DownloadManager();
+      await Future.delayed(Duration(seconds: 2), null);
+      await dl.pauseDownload(url3);
 
-    DownloadTask? task = await dl.addDownload(
-        url1, directory2.path + Platform.pathSeparator + fileName1);
+      await Future.delayed(Duration(seconds: 1), null);
+      await dl.resumeDownload(url3);
 
-    await Future.delayed(Duration(seconds: 1), null);
-    await dl.cancelDownload(url1);
+      final status = await dl.whenDownloadComplete(url3);
 
-    assert(task?.status.value == DownloadStatus.canceled);
-  });
+      assert(status == DownloadStatus.completed);
+    });
 
-  test('pause and resume download', () async {
-    var dl = DownloadManager();
+    test('handle empty url', () async {
+      var dl = DownloadManager();
 
-    await dl.addDownload(url3, directory3.path);
+      var url = "";
+      await dl.addDownload(
+          url, directory4.path + Platform.pathSeparator + fileName1);
 
-    await Future.delayed(Duration(seconds: 2), null);
-    await dl.pauseDownload(url3);
+      // assert the exception
+      try {
+        await dl.whenDownloadComplete(url);
+      } catch (e) {
+        assert(e is ArgumentError);
+      }
+    });
 
-    await Future.delayed(Duration(seconds: 1), null);
-    await dl.resumeDownload(url3);
+    test('download in sequence', () async {
+      var dl = DownloadManager();
 
-    final status = await dl.whenDownloadComplete(url3);
+      await dl.addDownload(
+          url1, directory5.path + Platform.pathSeparator + fileName1);
+      await dl.addDownload(url2, directory5.path);
+      await dl.addDownload(url3, directory5.path);
 
-    assert(status == DownloadStatus.completed);
-  });
+      final status1 = await dl.whenDownloadComplete(url1);
+      final status2 = await dl.whenDownloadComplete(url2);
+      final status3 = await dl.whenDownloadComplete(url3);
 
-  test('handle empty url', () async {
-    var dl = DownloadManager();
+      assert(status1 == DownloadStatus.completed);
+      assert(status2 == DownloadStatus.completed);
+      assert(status3 == DownloadStatus.completed);
+    });
 
-    var url = "";
-    await dl.addDownload(
-        url, directory4.path + Platform.pathSeparator + fileName1);
+    test('download in batch', () async {
+      var dl = DownloadManager();
 
-    // assert the exception
-    try {
-      await dl.whenDownloadComplete(url);
-    } catch (e) {
-      assert(e is ArgumentError);
-    }
-  });
+      var urls = <String>[];
+      urls.add(url1);
+      urls.add(url2);
+      urls.add(url3);
 
-  test('download in sequence', () async {
-    var dl = DownloadManager();
+      await dl.addBatchDownloads(urls, directory6.path);
 
-    await dl.addDownload(
-        url1, directory5.path + Platform.pathSeparator + fileName1);
-    await dl.addDownload(url2, directory5.path);
-    await dl.addDownload(url3, directory5.path);
+      final statusList = await dl.whenBatchDownloadsComplete(urls);
+      assert(statusList != null, 'statusList is null');
+      assert(
+          statusList!.every(
+              (status) => status?.status.value == DownloadStatus.completed),
+          'statusList is not completed');
+    });
 
-    final status1 = await dl.whenDownloadComplete(url1);
-    final status2 = await dl.whenDownloadComplete(url2);
-    final status3 = await dl.whenDownloadComplete(url3);
+    test('cancel a batched download', () async {
+      var dl = DownloadManager();
 
-    assert(status1 == DownloadStatus.completed);
-    assert(status2 == DownloadStatus.completed);
-    assert(status3 == DownloadStatus.completed);
-  });
+      var urls = <String>[];
+      urls.add(url1);
+      urls.add(url2);
+      urls.add(url3);
+      await dl.addBatchDownloads(urls, directory7.path);
 
-  test('download in batch', () async {
-    var dl = DownloadManager();
+      var downloads = dl.getBatchDownloads(urls);
 
-    var urls = <String>[];
-    urls.add(url1);
-    urls.add(url2);
-    urls.add(url3);
+      await dl.cancelBatchDownloads(urls);
 
-    await dl.addBatchDownloads(urls, directory6.path);
+      await dl.whenBatchDownloadsComplete(urls);
+      assert(downloads
+          .every((task) => task?.status.value == DownloadStatus.canceled));
+    });
 
-    final statusList = await dl.whenBatchDownloadsComplete(urls);
-    assert(statusList != null, 'statusList is null');
-    assert(
-        statusList!.every(
-            (status) => status?.status.value == DownloadStatus.completed),
-        'statusList is not completed');
-  });
+    test('cancel a single item in a batched download', () async {
+      var dl = DownloadManager();
 
-  test('cancel a batched download', () async {
-    var dl = DownloadManager();
+      var urls = <String>[];
+      urls.add(url1);
+      urls.add(url2);
+      urls.add(url3);
+      await dl.addBatchDownloads(urls, directory8.path);
 
-    var urls = <String>[];
-    urls.add(url1);
-    urls.add(url2);
-    urls.add(url3);
-    await dl.addBatchDownloads(urls, directory7.path);
+      var downloads = dl.getBatchDownloads(urls);
 
-    var downloads = dl.getBatchDownloads(urls);
+      await Future.delayed(Duration(seconds: 1), null);
 
-    await dl.cancelBatchDownloads(urls);
+      await dl.cancelDownload(url3);
 
-    await dl.whenBatchDownloadsComplete(urls);
-    assert(
-        downloads.every((task) => task?.status.value == DownloadStatus.queued));
-  });
-
-  test('cancel a single item in a batched download', () async {
-    var dl = DownloadManager();
-
-    var urls = <String>[];
-    urls.add(url1);
-    urls.add(url2);
-    urls.add(url3);
-    await dl.addBatchDownloads(urls, directory8.path);
-
-    var downloads = dl.getBatchDownloads(urls);
-
-    await Future.delayed(Duration(seconds: 1), null);
-
-    await dl.cancelDownload(url3);
-
-    await dl.whenBatchDownloadsComplete(urls);
-    assert(downloads[0]?.status.value == DownloadStatus.completed);
-    assert(downloads[1]?.status.value == DownloadStatus.completed);
-    print('status: ${downloads[2]?.status.value}');
-    assert(downloads[2]?.status.value == DownloadStatus.canceled);
+      await dl.whenBatchDownloadsComplete(urls);
+      assert(downloads[0]?.status.value == DownloadStatus.completed);
+      assert(downloads[1]?.status.value == DownloadStatus.completed);
+      print('status: ${downloads[2]?.status.value}');
+      assert(downloads[2]?.status.value == DownloadStatus.canceled);
+    });
   });
 }
