@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 import 'package:collection/collection.dart';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_download_manager/flutter_download_manager.dart';
+import 'package:universal_io/io.dart';
 
 class DownloadManager {
   final Map<String, DownloadTask> _cache = <String, DownloadTask>{};
@@ -13,8 +12,6 @@ class DownloadManager {
   var dio = Dio();
   static const partialExtension = ".partial";
   static const tempExtension = ".temp";
-
-  // var tasks = StreamController<DownloadTask>();
 
   int maxConcurrentTasks = 2;
   int runningTasks = 0;
@@ -129,8 +126,8 @@ class DownloadManager {
   }
 
   void disposeNotifiers(DownloadTask task) {
-    // task.status.dispose();
-    // task.progress.dispose();
+    task.status.dispose();
+    task.progress.dispose();
   }
 
   void setStatus(DownloadTask? task, DownloadStatus status) {
@@ -138,9 +135,9 @@ class DownloadManager {
       task.status.value = status;
 
       // tasks.add(task);
-      if (status.isCompleted) {
-        disposeNotifiers(task);
-      }
+      // if (status.isCompleted) {
+      //   disposeNotifiers(task);
+      // }
     }
   }
 
@@ -155,7 +152,7 @@ class DownloadManager {
           ? savedDir + Platform.pathSeparator + getFileNameFromUrl(url)
           : savedDir;
 
-      return _addDownloadRequest(DownloadRequest(url, downloadFilename));
+      return await _addDownloadRequest(DownloadRequest(url, downloadFilename));
     }
     return null;
   }
@@ -217,23 +214,32 @@ class DownloadManager {
   }
 
   Future<void> removeDownload(String url) async {
-    cancelDownload(url);
-    _cache.remove(url);
+    if (_cache.containsKey(url)) {
+      await cancelDownload(url);
+      _cache.remove(url);
+      final task = getDownload(url);
+      if (task != null) {
+        disposeNotifiers(task);
+      }
+    }
   }
 
   // Do not immediately call getDownload After addDownload, rather use the returned DownloadTask from addDownload
   DownloadTask? getDownload(String url) {
-    return _cache[url];
+    if (_cache.containsKey(url)) {
+      return _cache[url];
+    }
+    return null;
   }
 
   Future<DownloadStatus> whenDownloadComplete(String url,
-      {Duration timeout = const Duration(hours: 2)}) async {
+      {Duration timeout = const Duration(hours: 2)}) {
     DownloadTask? task = getDownload(url);
 
     if (task != null) {
       return task.whenDownloadComplete(timeout: timeout);
     } else {
-      return Future.error("Not found");
+      return Future.error(ArgumentError("Not found"));
     }
   }
 
@@ -243,9 +249,7 @@ class DownloadManager {
 
   // Batch Download Mechanism
   Future<void> addBatchDownloads(List<String> urls, String savedDir) async {
-    urls.forEach((url) {
-      addDownload(url, savedDir);
-    });
+    await Future.wait(urls.map((url) => addDownload(url, savedDir)));
   }
 
   List<DownloadTask?> getBatchDownloads(List<String> urls) {
@@ -253,21 +257,15 @@ class DownloadManager {
   }
 
   Future<void> pauseBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      pauseDownload(element);
-    });
+    await Future.wait(urls.map((url) => pauseDownload(url)));
   }
 
   Future<void> cancelBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      cancelDownload(element);
-    });
+    await Future.wait(urls.map((url) => cancelDownload(url)));
   }
 
   Future<void> resumeBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      resumeDownload(element);
-    });
+    await Future.wait(urls.map((url) => resumeDownload(url)));
   }
 
   ValueNotifier<double> getBatchDownloadProgress(List<String> urls) {
@@ -323,7 +321,7 @@ class DownloadManager {
   }
 
   Future<List<DownloadTask?>?> whenBatchDownloadsComplete(List<String> urls,
-      {Duration timeout = const Duration(hours: 2)}) async {
+      {Duration timeout = const Duration(hours: 2)}) {
     var completer = Completer<List<DownloadTask?>?>();
 
     var completed = 0;
@@ -387,6 +385,13 @@ class DownloadManager {
 
   /// This function is used for get file name with extension from url
   String getFileNameFromUrl(String url) {
-    return url.split('/').last;
+    if (url.contains('?')) {
+      final filename = url.split('?').first.split('/').last;
+      print('filename: $filename');
+      return filename.contains('.') ? filename : filename + '.mp4';
+    }
+    final filename = url.split('/').last;
+    print('filename: $filename');
+    return filename.contains('.') ? filename : filename + '.mp4';
   }
 }

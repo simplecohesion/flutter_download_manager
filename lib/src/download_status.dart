@@ -13,7 +13,6 @@ extension DownloadStatusExtension on DownloadStatus {
         return true;
       case DownloadStatus.failed:
         return true;
-
       case DownloadStatus.canceled:
         return true;
     }

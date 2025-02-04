@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   dio: ^5.0.2
   collection: ^1.17.1
+  file_system_access_api: ^2.0.0
+  universal_io: ^2.2.2
 
 dev_dependencies:
   flutter_test:
