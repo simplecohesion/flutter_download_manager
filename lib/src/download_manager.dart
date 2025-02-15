@@ -9,6 +9,14 @@ import 'package:flutter_download_manager/flutter_download_manager.dart';
 import 'package:flutter_download_manager/src/platform/download_platform.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
 
+/// A singleton class that manages download tasks with support for concurrent downloads,
+/// queue management, and progress tracking.
+///
+/// The DownloadManager provides functionality to:
+/// * Download files with progress tracking
+/// * Pause, resume, and cancel downloads
+/// * Queue downloads with configurable concurrent task limits
+/// * Track multiple download statuses and progress
 class DownloadManager {
   DownloadManager._internal({
     int? maxConcurrentTasks,
@@ -23,21 +31,36 @@ class DownloadManager {
     _platform = createDownloadPlatform(this.dio, this);
   }
 
+  /// Singleton instance of the DownloadManager
   static final DownloadManager instance = DownloadManager._internal();
 
+  /// Cache of download tasks indexed by URL
   final Map<String, DownloadTask> cache = <String, DownloadTask>{};
+
+  /// Queue of pending download requests
   final Queue<DownloadRequest> queue = Queue();
 
+  /// HTTP client for making download requests
   Dio dio = Dio();
 
+  /// File extension used for partially downloaded files
   final partialExtension = '.partial';
+
+  /// File extension used for temporary files
   final tempExtension = '.temp';
 
+  /// Maximum number of concurrent download tasks
   int maxConcurrentTasks = 2;
+
+  /// Current number of running download tasks
   int runningTasks = 0;
 
   late final DownloadPlatformInterface _platform;
 
+  /// Creates a progress callback function for a specific download URL
+  ///
+  /// [url] The URL of the download
+  /// [partialFileLength] The length of any existing partial download
   void Function(int, int) createCallback(String url, int partialFileLength) =>
       (int received, int total) {
         getDownload(url)?.progress.value =
@@ -46,6 +69,12 @@ class DownloadManager {
         if (total == -1) {}
       };
 
+  /// Downloads a file from the given URL to the specified path
+  ///
+  /// [url] The URL to download from
+  /// [savePath] The local path to save the file to
+  /// [cancelToken] Optional token to cancel the download
+  /// [forceDownload] Whether to force download even if file exists
   Future<void> download(
     String url,
     String savePath,
@@ -60,17 +89,25 @@ class DownloadManager {
     );
   }
 
+  /// Cleans up ValueNotifier resources for a download task
   void disposeNotifiers(DownloadTask task) {
     task.status.dispose();
     task.progress.dispose();
   }
 
+  /// Updates the status of a download task
   void setStatus(DownloadTask? task, DownloadStatus status) {
     if (task != null) {
       task.status.value = status;
     }
   }
 
+  /// Adds a new download task to the queue
+  ///
+  /// [url] The URL to download from
+  /// [localPath] The local path to save the file to
+  ///
+  /// Throws [ArgumentError] if URL or localPath is empty or if URL is invalid
   Future<DownloadTask> addDownload(String url, String localPath) async {
     if (url.isEmpty) {
       throw ArgumentError('url cannot be empty');
@@ -111,6 +148,9 @@ class DownloadManager {
     return task;
   }
 
+  /// Pauses an active download
+  ///
+  /// [url] The URL of the download to pause
   Future<void> pauseDownload(String url) async {
     debugPrint('Pause Download');
     final task = getDownload(url)!;
@@ -120,6 +160,9 @@ class DownloadManager {
     queue.remove(task.request);
   }
 
+  /// Cancels a download
+  ///
+  /// [url] The URL of the download to cancel
   Future<void> cancelDownload(String url) async {
     debugPrint('Cancel Download');
     final task = getDownload(url)!;
@@ -128,6 +171,9 @@ class DownloadManager {
     task.request.cancelToken.cancel();
   }
 
+  /// Resumes a paused download
+  ///
+  /// [url] The URL of the download to resume
   Future<void> resumeDownload(String url) async {
     debugPrint('Resume Download');
     final task = getDownload(url)!;
@@ -138,6 +184,9 @@ class DownloadManager {
     unawaited(startExecution());
   }
 
+  /// Removes a download from the manager
+  ///
+  /// [url] The URL of the download to remove
   Future<void> removeDownload(String url) async {
     if (cache.containsKey(url)) {
       await cancelDownload(url);
@@ -149,7 +198,12 @@ class DownloadManager {
     }
   }
 
-  // Do not immediately call getDownload After addDownload, rather use the returned DownloadTask from addDownload
+  /// Retrieves a download task by URL
+  ///
+  /// Note: Do not immediately call this after [addDownload],
+  /// instead use the DownloadTask returned by [addDownload]
+  ///
+  /// [url] The URL of the download to retrieve
   DownloadTask? getDownload(String url) {
     if (cache.containsKey(url)) {
       return cache[url];
@@ -157,6 +211,10 @@ class DownloadManager {
     return null;
   }
 
+  /// Waits for a download to complete
+  ///
+  /// [url] The URL of the download to wait for
+  /// [timeout] Maximum time to wait for completion
   Future<DownloadStatus> whenDownloadComplete(
     String url, {
     Duration timeout = const Duration(hours: 2),
@@ -170,26 +228,35 @@ class DownloadManager {
     }
   }
 
+  /// Returns all active downloads
   List<DownloadTask> getAllDownloads() {
     return cache.values.toList();
   }
 
+  /// Returns download tasks for the specified URLs
   List<DownloadTask?> getDownloads(List<String> urls) {
     return urls.map((e) => cache[e]).toList();
   }
 
+  /// Pauses multiple downloads
   Future<void> pauseDownloads(List<String> urls) async {
     await Future.wait(urls.map(pauseDownload));
   }
 
+  /// Cancels multiple downloads
   Future<void> cancelDownloads(List<String> urls) async {
     await Future.wait(urls.map(cancelDownload));
   }
 
+  /// Resumes multiple downloads
   Future<void> resumeDownloads(List<String> urls) async {
     await Future.wait(urls.map(resumeDownload));
   }
 
+  /// Creates a ValueNotifier that tracks the combined progress of multiple downloads
+  ///
+  /// [urls] List of URLs to track
+  /// Returns a ValueNotifier with values from 0.0 to 1.0
   ValueNotifier<double> getDownloadsProgress(List<String> urls) {
     final progress = ValueNotifier<double>(0);
     var total = urls.length;
@@ -242,6 +309,10 @@ class DownloadManager {
     return progress;
   }
 
+  /// Waits for multiple downloads to complete
+  ///
+  /// [urls] List of URLs to wait for
+  /// [timeout] Maximum time to wait for completion
   Future<List<DownloadTask?>?> whenDownloadsComplete(
     List<String> urls, {
     Duration timeout = const Duration(hours: 2),
@@ -288,6 +359,7 @@ class DownloadManager {
     return completer.future.timeout(timeout);
   }
 
+  /// Starts executing queued downloads up to the maximum concurrent task limit
   Future<void> startExecution() async {
     if (runningTasks == maxConcurrentTasks || queue.isEmpty) {
       return;
@@ -312,18 +384,24 @@ class DownloadManager {
     }
   }
 
+  /// File system operations
+
+  /// Deletes a file at the specified path
   Future<void> deleteFile(String path) async {
     return _platform.deleteFile(path);
   }
 
+  /// Creates a directory at the specified path
   Future<void> createDirectory(String path) async {
     return _platform.createDirectory(path);
   }
 
+  /// Deletes a directory at the specified path
   Future<void> deleteDirectory(String path) async {
     return _platform.deleteDirectory(path);
   }
 
+  /// Lists all files in a directory
   Future<List<String>> getFilesInDirectory(String path) {
     return _platform.getFilesInDirectory(path);
   }
