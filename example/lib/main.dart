@@ -1,9 +1,8 @@
-// ignore_for_file: cascade_invocations
-
-import 'dart:io';
+// ignore_for_file: cascade_invocations, public_member_api_docs
 
 import 'package:flutter/material.dart';
 import 'package:flutter_download_manager/flutter_download_manager.dart';
+import 'package:universal_io/io.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,23 +33,21 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String url2 = 'http://download.dcloud.net.cn/HBuilder.9.0.2.macosx_64.dmg';
-
-  String url3 =
-      'https://cdn.jsdelivr.net/gh/flutterchina/flutter-in-action@1.0/docs/imgs/book.jpg';
-  String url = 'http://app01.78x56.com/Xii_2021-03-13%2010%EF%BC%9A41.ipa';
-  String url4 =
-      'https://jsoncompare.org/LearningContainer/SampleFiles/Video/MP4/sample-mp4-file.mp4';
-  String url5 =
-      'https://jsoncompare.org/LearningContainer/SampleFiles/Video/MP4/Sample-Video-File-For-Testing.mp4';
+  final url1 =
+      'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
+  final url2 = 'https://www.sample-videos.com/img/Sample-jpg-image-1mb.jpg';
+  final url3 = 'https://www.sample-videos.com/zip/10mb.zip';
 
   DownloadManager downloadManager = DownloadManager.instance;
-  String savedDir = '';
+  final directoryPath =
+      '.${Platform.pathSeparator}test${Platform.pathSeparator}downloads';
 
   @override
   void initState() {
     super.initState();
-    getApplicationSupportDirectory().then((value) => savedDir = value.path);
+    // Create directory if it doesn't exist
+
+    downloadManager.createDirectory(directoryPath);
   }
 
   @override
@@ -70,26 +67,34 @@ class _MyHomePageState extends State<MyHomePage> {
                         downloadManager.pauseDownload(url);
                       case DownloadStatus.paused:
                         downloadManager.resumeDownload(url);
+                      case DownloadStatus.queued:
+                        // Do nothing while queued
+                        break;
+                      case DownloadStatus.completed:
+                        // Already completed, do nothing
+                        break;
+                      default:
+                      // Do nothing for other cases
                     }
                   } else {
+                    final fileName = url.split('/').last;
                     downloadManager.addDownload(
                       url,
-                      '$savedDir/${downloadManager.getFileNameFromUrl(url)}',
+                      '$directoryPath${Platform.pathSeparator}$fileName',
                     );
                   }
                 });
               },
-              onDelete: (url) {
-                final fileName =
-                    '$savedDir/${downloadManager.getFileNameFromUrl(url)}';
-                final file = File(fileName);
-                file.delete();
-
-                downloadManager.removeDownload(url);
+              onDelete: (url) async {
+                final fileName = url.split('/').last;
+                await downloadManager.deleteFile(
+                  '$directoryPath${Platform.pathSeparator}$fileName',
+                );
+                await downloadManager.removeDownload(url);
                 setState(() {});
               },
-              url: url,
-              downloadTask: downloadManager.getDownload(url),
+              url: url1,
+              downloadTask: downloadManager.getDownload(url1),
             ),
             ListItem(
               onDownloadPlayPausedPressed: (url) async {
@@ -102,210 +107,166 @@ class _MyHomePageState extends State<MyHomePage> {
                         downloadManager.pauseDownload(url);
                       case DownloadStatus.paused:
                         downloadManager.resumeDownload(url);
+                      case DownloadStatus.queued:
+                      // Do nothing while queued
+                      case DownloadStatus.completed:
+                        // Already completed, do nothing
+                        break;
+                      default:
+                      // Do nothing for other cases
                     }
                   } else {
+                    final fileName = url.split('/').last;
                     downloadManager.addDownload(
                       url,
-                      '$savedDir/${downloadManager.getFileNameFromUrl(url)}',
+                      '$directoryPath${Platform.pathSeparator}$fileName',
                     );
                   }
                 });
               },
-              onDelete: (url) {
-                final fileName =
-                    '$savedDir/${downloadManager.getFileNameFromUrl(url)}';
-                final file = File(fileName);
-                file.delete();
-
-                downloadManager.removeDownload(url);
+              onDelete: (url) async {
+                final fileName = url.split('/').last;
+                await downloadManager.deleteFile(
+                  '$directoryPath${Platform.pathSeparator}$fileName',
+                );
+                await downloadManager.removeDownload(url);
                 setState(() {});
               },
               url: url2,
               downloadTask: downloadManager.getDownload(url2),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Text('Batch Downloads'),
-                  ),
-                  ListItem(
-                    onDownloadPlayPausedPressed: (url) async {
-                      setState(() {
-                        final task = downloadManager.getDownload(url);
+            // Padding(
+            //   padding: const EdgeInsets.all(8),
+            //   child: Column(
+            //     children: [
+            //       const Padding(
+            //         padding: EdgeInsets.all(8),
+            //         child: Text('Batch Downloads'),
+            //       ),
+            //       ListItem(
+            //         onDownloadPlayPausedPressed: (url) async {
+            //           setState(() {
+            //             final task = downloadManager.getDownload(url);
 
-                        if (task != null && !task.status.value.isCompleted) {
-                          switch (task.status.value) {
-                            case DownloadStatus.downloading:
-                              downloadManager.pauseDownload(url);
-                            case DownloadStatus.paused:
-                              downloadManager.resumeDownload(url);
-                          }
-                        } else {
-                          downloadManager.addDownload(
-                            url,
-                            '$savedDir/${downloadManager.getFileNameFromUrl(url)}',
-                          );
-                        }
-                      });
-                    },
-                    onDelete: (url) {
-                      final fileName =
-                          '$savedDir/${downloadManager.getFileNameFromUrl(url)}';
-                      final file = File(fileName);
-                      file.delete();
+            //             if (task != null && !task.status.value.isCompleted) {
+            //               switch (task.status.value) {
+            //                 case DownloadStatus.downloading:
+            //                   downloadManager.pauseDownload(url);
+            //                 case DownloadStatus.paused:
+            //                   downloadManager.resumeDownload(url);
+            //                 case DownloadStatus.queued:
+            //                   // Do nothing while queued
+            //                   break;
+            //                 case DownloadStatus.completed:
+            //                   // Already completed, do nothing
+            //                   break;
+            //                 default:
+            //                 // Do nothing for other cases
+            //               }
+            //             } else {
+            //               final fileName = url.split('/').last;
+            //               downloadManager.addDownload(
+            //                 url,
+            //                 '${directory1.path}${Platform.pathSeparator}$fileName',
+            //               );
+            //             }
+            //           });
+            //         },
+            //         onDelete: (url) {
+            //           final fileName = url.split('/').last;
+            //           final file = File(
+            //             '${directory1.path}${Platform.pathSeparator}$fileName',
+            //           );
+            //           file.delete();
 
-                      downloadManager.removeDownload(url);
-                      setState(() {});
-                    },
-                    url: url3,
-                    downloadTask: downloadManager.getDownload(url3),
-                  ),
-                  ListItem(
-                    onDownloadPlayPausedPressed: (url) async {
-                      setState(() {
-                        final task = downloadManager.getDownload(url);
-
-                        if (task != null && !task.status.value.isCompleted) {
-                          switch (task.status.value) {
-                            case DownloadStatus.downloading:
-                              downloadManager.pauseDownload(url);
-                            case DownloadStatus.paused:
-                              downloadManager.resumeDownload(url);
-                          }
-                        } else {
-                          downloadManager.addDownload(
-                            url,
-                            '$savedDir/${downloadManager.getFileNameFromUrl(url)}',
-                          );
-                        }
-                      });
-                    },
-                    onDelete: (url) {
-                      final fileName =
-                          '$savedDir/${downloadManager.getFileNameFromUrl(url)}';
-                      final file = File(fileName);
-                      file.delete();
-
-                      downloadManager.removeDownload(url);
-                      setState(() {});
-                    },
-                    url: url4,
-                    downloadTask: downloadManager.getDownload(url4),
-                  ),
-                  ListItem(
-                    onDownloadPlayPausedPressed: (url) async {
-                      setState(() {
-                        final task = downloadManager.getDownload(url);
-
-                        if (task != null && !task.status.value.isCompleted) {
-                          switch (task.status.value) {
-                            case DownloadStatus.downloading:
-                              downloadManager.pauseDownload(url);
-                            case DownloadStatus.paused:
-                              downloadManager.resumeDownload(url);
-                          }
-                        } else {
-                          downloadManager.addDownload(
-                            url,
-                            '$savedDir/${downloadManager.getFileNameFromUrl(url)}',
-                          );
-                        }
-                      });
-                    },
-                    onDelete: (url) {
-                      final fileName =
-                          '$savedDir/${downloadManager.getFileNameFromUrl(url)}';
-                      final file = File(fileName);
-                      file.delete();
-
-                      downloadManager.removeDownload(url);
-                      setState(() {});
-                    },
-                    url: url5,
-                    downloadTask: downloadManager.getDownload(url5),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          downloadManager.addBatchDownloads(
-                            [url3, url4, url5],
-                            savedDir,
-                          );
-                          setState(() {});
-                        },
-                        child: const Text('Download All'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          downloadManager.pauseDownloads([url3, url4, url5]);
-                        },
-                        child: const Text('Pause All'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          downloadManager.cancelDownloads([url3, url4, url5]);
-                        },
-                        child: const Text('Cancel All'),
-                      ),
-                    ],
-                  ),
-                  ValueListenableBuilder(
-                    valueListenable: downloadManager
-                        .getDownloadsProgress([url3, url4, url5]),
-                    builder: (context, value, child) {
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: LinearProgressIndicator(
-                          value: value,
-                        ),
-                      );
-                    },
-                  ),
-                  FutureBuilder<List<DownloadTask?>?>(
-                    future: downloadManager
-                        .whenDownloadsComplete([url3, url4, url5]),
-                    builder: (
-                      BuildContext context,
-                      AsyncSnapshot<List<DownloadTask?>?> snapshot,
-                    ) {
-                      switch (snapshot.connectionState) {
-                        case ConnectionState.waiting:
-                          return const Text(
-                            'I will wait till the batch downloads have been completed',
-                          );
-                        default:
-                          if (snapshot.hasError) {
-                            return Text('Error: ${snapshot.error}');
-                          } else {
-                            return snapshot.data != null
-                                ? Column(
-                                    children: [
-                                      const Text('Result'),
-                                      for (final e in snapshot.data!)
-                                        e != null
-                                            ? Padding(
-                                                padding:
-                                                    const EdgeInsets.all(8),
-                                                child: Text(
-                                                  '${downloadManager.getFileNameFromUrl(e.request.url)}: ${e.status.value}',
-                                                ),
-                                              )
-                                            : const Text('Not found'),
-                                    ],
-                                  )
-                                : const Text('No Downloads have been found');
-                          }
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
+            //           downloadManager.removeDownload(url);
+            //           setState(() {});
+            //         },
+            //         url: url3,
+            //         downloadTask: downloadManager.getDownload(url3),
+            //       ),
+            //       Row(
+            //         mainAxisAlignment: MainAxisAlignment.center,
+            //         children: [
+            //           TextButton(
+            //             onPressed: () async {
+            //               for (final downloadUrl in [url1, url2, url3]) {
+            //                 final fileName = downloadUrl.split('/').last;
+            //                 await downloadManager.addDownload(
+            //                   downloadUrl,
+            //                   '${directory1.path}${Platform.pathSeparator}$fileName',
+            //                 );
+            //               }
+            //               setState(() {});
+            //             },
+            //             child: const Text('Download All'),
+            //           ),
+            //           TextButton(
+            //             onPressed: () {
+            //               downloadManager.pauseDownloads([url1, url2, url3]);
+            //             },
+            //             child: const Text('Pause All'),
+            //           ),
+            //           TextButton(
+            //             onPressed: () {
+            //               downloadManager.cancelDownloads([url1, url2, url3]);
+            //             },
+            //             child: const Text('Cancel All'),
+            //           ),
+            //         ],
+            //       ),
+            //       ValueListenableBuilder(
+            //         valueListenable: downloadManager
+            //             .getDownloadsProgress([url1, url2, url3]),
+            //         builder: (context, value, child) {
+            //           return Container(
+            //             margin: const EdgeInsets.symmetric(vertical: 4),
+            //             child: LinearProgressIndicator(
+            //               value: value,
+            //             ),
+            //           );
+            //         },
+            //       ),
+            //       FutureBuilder<List<DownloadTask?>?>(
+            //         future: downloadManager
+            //             .whenDownloadsComplete([url1, url2, url3]),
+            //         builder: (
+            //           BuildContext context,
+            //           AsyncSnapshot<List<DownloadTask?>?> snapshot,
+            //         ) {
+            //           switch (snapshot.connectionState) {
+            //             case ConnectionState.waiting:
+            //               return const Text(
+            //                 'I will wait till the batch downloads have been completed',
+            //               );
+            //             default:
+            //               if (snapshot.hasError) {
+            //                 return Text('Error: ${snapshot.error}');
+            //               } else {
+            //                 return snapshot.data != null
+            //                     ? Column(
+            //                         children: [
+            //                           const Text('Result'),
+            //                           for (final e in snapshot.data!)
+            //                             e != null
+            //                                 ? Padding(
+            //                                     padding:
+            //                                         const EdgeInsets.all(8),
+            //                                     child: Text(
+            //                                       '${e.request.url.split('/').last}: ${e.status.value}',
+            //                                     ),
+            //                                   )
+            //                                 : const Text('Not found'),
+            //                         ],
+            //                       )
+            //                     : const Text('No Downloads have been found');
+            //               }
+            //           }
+            //         },
+            //       ),
+            //     ],
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -314,18 +275,18 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class ListItem extends StatelessWidget {
-  final Function(String) onDownloadPlayPausedPressed;
-  final Function(String) onDelete;
-  DownloadTask? downloadTask;
-  String url = '';
-
-  ListItem({
+  const ListItem({
     required this.url,
     required this.onDownloadPlayPausedPressed,
     required this.onDelete,
-    Key? key,
+    super.key,
     this.downloadTask,
-  }) : super(key: key);
+  });
+  final Future<void> Function(String) onDownloadPlayPausedPressed;
+  final Future<void> Function(String) onDelete;
+
+  final DownloadTask? downloadTask;
+  final String url;
 
   @override
   Widget build(BuildContext context) {

@@ -4,9 +4,10 @@ import 'dart:html' as html;
 import 'package:dio/dio.dart';
 import 'package:file_system_access_api/file_system_access_api.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_download_manager/flutter_download_manager.dart';
+import 'package:flutter_download_manager/src/download_manager.dart';
+import 'package:flutter_download_manager/src/download_status.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
-import 'package:flutter_download_manager/src/platform/opfs_helpers.dart';
+import 'package:flutter_download_manager/src/opfs_helpers.dart';
 
 class WebDownloadPlatform implements DownloadPlatformInterface {
   WebDownloadPlatform({
@@ -66,9 +67,7 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
   @override
   Future<void> deleteFile(String path) async {
     final fileHandle = await OpfsHelper.getFileHandle(path);
-    if (fileHandle != null) {
-      await fileHandle.remove();
-    }
+    await fileHandle.remove();
   }
 
   @override

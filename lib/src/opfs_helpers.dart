@@ -36,7 +36,28 @@ class OpfsHelper {
     bool create = false,
   }) async {
     final rootHandle = await getRootDirectoryHandle();
-    return rootHandle.getDirectoryHandle(path, create: create);
+
+    final pathParts = path.split(Platform.pathSeparator);
+    // if the first part is a ., remove it as that is the default directory
+    if (pathParts.first == '.') {
+      pathParts.removeAt(0);
+    }
+
+    // if the last part is a .., throw an error as that is not allowed
+    if (pathParts.last == '..') {
+      throw ArgumentError('Path cannot contain ".."');
+    }
+
+    var directoryHandle = rootHandle;
+
+    // loop through the path parts to build up a directory handle, don't use
+    //the last part as that is the file name
+    for (final part in pathParts) {
+      directoryHandle =
+          await directoryHandle.getDirectoryHandle(part, create: create);
+    }
+
+    return directoryHandle;
   }
 
   /// Gets a file handle for the specified path.
@@ -45,7 +66,7 @@ class OpfsHelper {
   ///
   /// Returns a [FileSystemFileHandle] for the specified file.
   /// The file will be created if it doesn't exist.
-  static Future<FileSystemFileHandle?> getFileHandle(String path) async {
+  static Future<FileSystemFileHandle> getFileHandle(String path) async {
     final parts = path.split(Platform.pathSeparator);
 
     final directoryPath =
@@ -65,9 +86,8 @@ class OpfsHelper {
   /// file cannot be accessed.
   static Future<String?> getPathToLocalFile(String filename) async {
     try {
-      final rootDirectoryHandle = await getRootDirectoryHandle();
+      final fileHandle = await getFileHandle(filename);
 
-      final fileHandle = await rootDirectoryHandle.getFileHandle(filename);
       final file = await fileHandle.getFile();
 
       final fileUrl = html.Url.createObjectUrlFromBlob(file);
@@ -89,19 +109,12 @@ class OpfsHelper {
   /// Rethrows any errors that occur during the write operation.
   static Future<void> writeFile(Uint8List data, String filename) async {
     try {
-      final directoryHandle =
-          await html.window.navigator.storage?.getDirectory();
-      if (directoryHandle != null) {
-        final fileHandle =
-            await directoryHandle.getFileHandle(filename, create: true);
-        final writable = await fileHandle.createWritable();
+      final fileHandle = await getFileHandle(filename);
+      final writable = await fileHandle.createWritable();
 
-        // Write the data to the file
-        await writable.writeAsArrayBuffer(data);
-        await writable.close();
-      } else {
-        throw UnsupportedError('File System Access API is not supported.');
-      }
+      // Write the data to the file
+      await writable.writeAsArrayBuffer(data);
+      await writable.close();
     } catch (e) {
       debugPrint('Error in writeFile: $e');
       rethrow;
