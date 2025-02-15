@@ -39,4 +39,9 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
   Future<List<String>> getFilesInDirectory(String path) async {
     throw UnimplementedError('This is a stub implementation');
   }
+
+  @override
+  Future<List<String>> getDirectoriesInDirectory(String path) async {
+    throw UnimplementedError('This is a stub implementation');
+  }
 }

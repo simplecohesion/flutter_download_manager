@@ -9,10 +9,10 @@ environment:
 dependencies:
   collection: ^1.17.1
   dio: ^5.0.2
-  file_system_access_api: ^2.0.0
   flutter:
     sdk: flutter
   universal_io: ^2.2.2
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

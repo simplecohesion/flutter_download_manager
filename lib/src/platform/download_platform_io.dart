@@ -142,6 +142,22 @@ class IODownloadPlatform implements DownloadPlatformInterface {
     if (!directory.existsSync()) {
       return [];
     }
-    return directory.listSync().map((e) => e.path).toList();
+    return directory.listSync().whereType<File>().map((e) => e.path).toList();
+  }
+
+  @override
+  Future<List<String>> getDirectoriesInDirectory(String path) async {
+    if (path.isEmpty) {
+      return [];
+    }
+    final directory = Directory(path);
+    if (!directory.existsSync()) {
+      return [];
+    }
+    return directory
+        .listSync()
+        .whereType<Directory>()
+        .map((e) => e.path)
+        .toList();
   }
 }

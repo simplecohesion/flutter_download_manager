@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import 'package:dio/dio.dart';
-import 'package:file_system_access_api/file_system_access_api.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_download_manager/src/download_manager.dart';
 import 'package:flutter_download_manager/src/download_status.dart';
 import 'package:flutter_download_manager/src/platform/download_platform_interface.dart';
-import 'package:flutter_download_manager/src/opfs_helpers.dart';
+import 'package:flutter_download_manager/src/platform/opfs_helpers.dart';
+import 'package:web/web.dart' hide ResponseType;
 
 class WebDownloadPlatform implements DownloadPlatformInterface {
   WebDownloadPlatform({
@@ -34,17 +36,40 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
     debugPrint('download: $url');
 
     try {
-      final response = await dio.get<Uint8List>(
+      final response = await dio.get<ResponseBody>(
         url,
-        options: Options(responseType: ResponseType.bytes),
+        options: Options(responseType: ResponseType.stream),
         cancelToken: cancelToken,
       );
 
-      final data = response.data;
+      final responseStream = response.data?.stream;
 
-      if (response.statusCode == html.HttpStatus.ok && data != null) {
-        await OpfsHelper.writeFile(data, savePath);
-        manager.setStatus(task, DownloadStatus.completed);
+      if (response.statusCode == HttpStatus.ok && responseStream != null) {
+        final fileHandle = await OpfsHelper.getFileHandle(savePath);
+        final opfsWritableFileStream = await fileHandle.createWritable().toDart;
+        final opfsWriter = opfsWritableFileStream.getWriter();
+
+        // make a future out the the responseStream
+        final completer = Completer<void>();
+        final subscription = responseStream.listen(
+          (data) {
+            opfsWriter.write(data.toJS).toDart;
+          },
+          onDone: () {
+            opfsWriter.close().toDart;
+            manager.setStatus(task, DownloadStatus.completed);
+            completer.complete();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            opfsWriter.close().toDart;
+            manager.setStatus(task, DownloadStatus.failed);
+            completer.completeError(error, stackTrace);
+          },
+          cancelOnError: true,
+        );
+
+        await completer.future;
+        await subscription.cancel();
       } else {
         manager.setStatus(task, DownloadStatus.failed);
       }
@@ -66,8 +91,7 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
 
   @override
   Future<void> deleteFile(String path) async {
-    final fileHandle = await OpfsHelper.getFileHandle(path);
-    await fileHandle.remove();
+    await OpfsHelper.deleteFile(path);
   }
 
   @override
@@ -77,23 +101,41 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
 
   @override
   Future<void> deleteDirectory(String path) async {
-    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
-    await directoryHandle.remove(recursive: true);
+    await OpfsHelper.deleteDirectory(path);
   }
 
   @override
   Future<List<String>> getFilesInDirectory(String path) async {
     final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
 
-    final files = await directoryHandle.values
-        .where((handle) => handle.kind == FileSystemKind.file)
+    final entries = directoryHandle
+        .getProperty<JSArray<FileSystemHandle>>('entries'.toJS)
+        .toDart;
+
+    final fileFutures = entries
+        .where((handle) => handle.kind == 'file')
         .cast<FileSystemFileHandle>()
-        .asyncMap(
-          (fileHandle) async =>
-              html.Url.createObjectUrlFromBlob(await fileHandle.getFile()),
+        .map(
+          (fileHandle) async => URL
+              .createObjectURL((await fileHandle.getFile().toDart) as JSObject),
         )
         .toList();
 
-    return files;
+    return Future.wait(fileFutures);
+  }
+
+  @override
+  Future<List<String>> getDirectoriesInDirectory(String path) async {
+    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
+
+    final entries = directoryHandle
+        .getProperty<JSArray<FileSystemHandle>>('entries'.toJS)
+        .toDart;
+
+    return entries
+        .where((handle) => handle.kind == 'directory')
+        .cast<FileSystemDirectoryHandle>()
+        .map((directoryHandle) => directoryHandle.name)
+        .toList();
   }
 }
