@@ -75,20 +75,19 @@ class FileSystemView extends ConsumerWidget {
         if (context.mounted) {
           showToast(
             context: context,
-            builder:
-                (context, overlay) => SurfaceCard(
-                  child: Basic(
-                    title: const Text('Error'),
-                    subtitle: Text(e.toString()),
-                    trailing: PrimaryButton(
-                      size: ButtonSize.small,
-                      onPressed: () {
-                        overlay.close();
-                      },
-                      child: const Text('Undo'),
-                    ),
-                  ),
+            builder: (context, overlay) => SurfaceCard(
+              child: Basic(
+                title: const Text('Error'),
+                subtitle: Text(e.toString()),
+                trailing: PrimaryButton(
+                  size: ButtonSize.small,
+                  onPressed: () {
+                    overlay.close();
+                  },
+                  child: const Text('Undo'),
                 ),
+              ),
+            ),
             location: ToastLocation.bottomLeft,
           );
         }
@@ -104,56 +103,55 @@ class FileSystemView extends ConsumerWidget {
             child: Text('Refresh'),
           ),
           Expanded(
-            child:
-                fileSystemItems == null
-                    ? CircularProgressIndicator()
+            child: fileSystemItems == null
+                ? Center(child: CircularProgressIndicator())
+                : fileSystemItems.isEmpty
+                    ? Center(child: Text('no items').muted())
                     : TreeView(
-                      expandIcon: true,
-                      shrinkWrap: true,
-                      recursiveSelection: false,
-                      nodes: fileSystemItems,
-                      branchLine: BranchLine.path,
-                      onSelectionChanged: TreeView.defaultSelectionHandler(
-                        fileSystemItems,
-                        (value) {
-                          ref
-                              .read(fileSystemItemsProvider.notifier)
-                              .setUiState(value);
-                        },
-                      ),
-                      builder: (context, node) {
-                        return TreeItemView(
-                          onPressed: () {},
-                          trailing:
-                              node.leaf
-                                  ? Container(
+                        expandIcon: true,
+                        // shrinkWrap: true,
+                        recursiveSelection: false,
+                        nodes: fileSystemItems,
+                        branchLine: BranchLine.path,
+                        onSelectionChanged: TreeView.defaultSelectionHandler(
+                          fileSystemItems,
+                          (value) {
+                            ref
+                                .read(fileSystemItemsProvider.notifier)
+                                .setUiState(value);
+                          },
+                        ),
+                        builder: (context, node) {
+                          return TreeItemView(
+                            onPressed: () {},
+                            trailing: node.leaf
+                                ? Container(
                                     width: 16,
                                     height: 16,
                                     alignment: Alignment.center,
                                     child: const CircularProgressIndicator(),
                                   )
-                                  : null,
-                          leading:
-                              node.leaf
-                                  ? const Icon(BootstrapIcons.fileImage)
-                                  : Icon(
+                                : null,
+                            leading: node.leaf
+                                ? const Icon(BootstrapIcons.fileImage)
+                                : Icon(
                                     node.expanded
                                         ? BootstrapIcons.folder2Open
                                         : BootstrapIcons.folder2,
                                   ),
-                          onExpand: TreeView.defaultItemExpandHandler(
-                            fileSystemItems,
-                            node,
-                            (value) {
-                              ref
-                                  .read(fileSystemItemsProvider.notifier)
-                                  .setUiState(value);
-                            },
-                          ),
-                          child: Text(node.data.name),
-                        );
-                      },
-                    ),
+                            onExpand: TreeView.defaultItemExpandHandler(
+                              fileSystemItems,
+                              node,
+                              (value) {
+                                ref
+                                    .read(fileSystemItemsProvider.notifier)
+                                    .setUiState(value);
+                              },
+                            ),
+                            child: Text(node.data.name),
+                          );
+                        },
+                      ),
           ),
         ],
       ).separator(const Gap(8)),

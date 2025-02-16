@@ -7,8 +7,6 @@ part 'file_systems_items_provider.g.dart';
 
 @riverpod
 class FileSystemItems extends _$FileSystemItems {
-  final _downloadManger = DownloadManager.instance;
-
   @override
   List<TreeNode<FileSystemItem>>? build() {
     return [];
@@ -28,9 +26,11 @@ class FileSystemItems extends _$FileSystemItems {
   Future<List<TreeNode<FileSystemItem>>> _getDirectories(
     String directoryPath,
   ) async {
+    final downloadManager = DownloadManager.instance;
+
     final items = <TreeNode<FileSystemItem>>[];
 
-    final directories = await _downloadManger.getDirectoriesInDirectory(
+    final directories = await downloadManager.getDirectoriesInDirectory(
       directoryPath,
     );
 
@@ -47,7 +47,7 @@ class FileSystemItems extends _$FileSystemItems {
       );
     }
 
-    final files = await _downloadManger.getFilesInDirectory(directoryPath);
+    final files = await downloadManager.getFilesInDirectory(directoryPath);
 
     for (final file in files) {
       items.add(

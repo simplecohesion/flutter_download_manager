@@ -85,7 +85,8 @@ class OpfsHelper {
         parts.take(parts.length - 1).join(Platform.pathSeparator);
     final fileName = parts.last;
 
-    final directoryHandle = await getDirectoryHandle(directoryPath);
+    final directoryHandle =
+        await getDirectoryHandle(directoryPath, create: true);
 
     return directoryHandle
         .getFileHandle(fileName, FileSystemGetFileOptions(create: true))
