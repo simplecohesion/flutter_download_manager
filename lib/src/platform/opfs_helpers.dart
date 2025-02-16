@@ -35,6 +35,10 @@ class OpfsHelper {
   }) async {
     final rootHandle = await getRootDirectoryHandle();
 
+    if (directoryPath.isEmpty) {
+      return rootHandle;
+    }
+
     final pathParts = directoryPath.split(Platform.pathSeparator);
     if (pathParts.isEmpty) {
       throw ArgumentError('Path cannot be empty');

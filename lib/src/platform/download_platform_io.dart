@@ -101,56 +101,60 @@ class IODownloadPlatform implements DownloadPlatformInterface {
   }
 
   @override
-  Future<void> deleteFile(String path) async {
-    if (path.isEmpty) {
+  Future<void> deleteFile(String filePath) async {
+    if (filePath.isEmpty) {
       return;
     }
-    final file = File(path);
+    final file = File(filePath);
     if (file.existsSync()) {
       file.deleteSync();
     }
   }
 
   @override
-  Future<void> createDirectory(String path) async {
-    if (path.isEmpty) {
+  Future<void> createDirectory(String directoryPath) async {
+    if (directoryPath.isEmpty) {
       return;
     }
-    final directory = Directory(path);
+    final directory = Directory(directoryPath);
     if (!directory.existsSync()) {
       directory.createSync(recursive: true);
     }
   }
 
   @override
-  Future<void> deleteDirectory(String path) async {
-    if (path.isEmpty) {
+  Future<void> deleteDirectory(String directoryPath) async {
+    if (directoryPath.isEmpty) {
       return;
     }
-    final directory = Directory(path);
+    final directory = Directory(directoryPath);
     if (directory.existsSync()) {
       directory.deleteSync(recursive: true);
     }
   }
 
   @override
-  Future<List<String>> getFilesInDirectory(String path) async {
-    if (path.isEmpty) {
+  Future<List<String>> getFilesInDirectory(String directoryPath) async {
+    if (directoryPath.isEmpty) {
       return [];
     }
-    final directory = Directory(path);
+    final directory = Directory(directoryPath);
     if (!directory.existsSync()) {
       return [];
     }
-    return directory.listSync().whereType<File>().map((e) => e.path).toList();
+    return directory
+        .listSync()
+        .whereType<File>()
+        .map((e) => e.uri.pathSegments.last)
+        .toList();
   }
 
   @override
-  Future<List<String>> getDirectoriesInDirectory(String path) async {
-    if (path.isEmpty) {
+  Future<List<String>> getDirectoriesInDirectory(String directoryPath) async {
+    if (directoryPath.isEmpty) {
       return [];
     }
-    final directory = Directory(path);
+    final directory = Directory(directoryPath);
     if (!directory.existsSync()) {
       return [];
     }
@@ -159,5 +163,10 @@ class IODownloadPlatform implements DownloadPlatformInterface {
         .whereType<Directory>()
         .map((e) => e.path)
         .toList();
+  }
+
+  @override
+  Future<String> getQualifiedPathForFile(String filePath) async {
+    return filePath;
   }
 }

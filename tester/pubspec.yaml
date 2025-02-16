@@ -1,0 +1,85 @@
+name: tester
+description: "Flutter download manager tester"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_download_manager:
+    path: ../
+
+  universal_io: ^2.2.2
+  two_dimensional_scrollables: ^0.3.3
+  hooks_riverpod: ^2.6.1
+  flutter_hooks: ^0.20.5
+  shadcn_flutter:
+    git:
+      url: "https://github.com/sunarya-thito/shadcn_flutter.git"
+  riverpod_annotation: ^2.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  riverpod_generator: ^2.6.4
+  build_runner: ^2.4.15
+  custom_lint: ^0.7.3
+  riverpod_lint: ^2.6.4
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: GeistSans
+      fonts:
+        - asset: packages/shadcn_flutter/fonts/Geist-Black.otf
+          weight: 800
+        - asset: packages/shadcn_flutter/fonts/Geist-Bold.otf
+          weight: 700
+        - asset: packages/shadcn_flutter/fonts/Geist-Light.otf
+          weight: 300
+        - asset: packages/shadcn_flutter/fonts/Geist-Medium.otf
+          weight: 500
+        - asset: packages/shadcn_flutter/fonts/Geist-SemiBold.otf
+          weight: 600
+        - asset: packages/shadcn_flutter/fonts/Geist-Thin.otf
+          weight: 100
+        - asset: packages/shadcn_flutter/fonts/Geist-UltraBlack.otf
+          weight: 900
+        - asset: packages/shadcn_flutter/fonts/Geist-UltraLight.otf
+          weight: 200
+        - asset: packages/shadcn_flutter/fonts/Geist-Regular.otf
+          weight: 400
+    - family: GeistMono
+      fonts:
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Black.otf
+          weight: 800
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Bold.otf
+          weight: 700
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Light.otf
+          weight: 300
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Medium.otf
+          weight: 500
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Regular.otf
+          weight: 400
+        - asset: packages/shadcn_flutter/fonts/GeistMono-SemiBold.otf
+          weight: 600
+        - asset: packages/shadcn_flutter/fonts/GeistMono-Thin.otf
+          weight: 100
+        - asset: packages/shadcn_flutter/fonts/GeistMono-UltraBlack.otf
+          weight: 900
+        - asset: packages/shadcn_flutter/fonts/GeistMono-UltraLight.otf
+          weight: 200
+    - family: RadixIcons
+      fonts:
+        - asset: packages/shadcn_flutter/icons/RadixIcons.otf
+    - family: BootstrapIcons
+      fonts:
+        - asset: packages/shadcn_flutter/icons/BootstrapIcons.otf
+

@@ -405,4 +405,14 @@ class DownloadManager {
   Future<List<String>> getFilesInDirectory(String path) {
     return _platform.getFilesInDirectory(path);
   }
+
+  /// Lists all directories in a directory
+  Future<List<String>> getDirectoriesInDirectory(String path) {
+    return _platform.getDirectoriesInDirectory(path);
+  }
+
+  /// Gets the qualified path for a file
+  Future<String> getQualifiedPathForFile(String path) {
+    return _platform.getQualifiedPathForFile(path);
+  }
 }

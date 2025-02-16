@@ -1,3 +1,5 @@
+// ignore_for_file: public_member_api_docs
+
 import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
@@ -90,47 +92,38 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
   }
 
   @override
-  Future<void> deleteFile(String path) async {
-    await OpfsHelper.deleteFile(path);
+  Future<void> deleteFile(String filePath) async {
+    await OpfsHelper.deleteFile(filePath);
   }
 
   @override
-  Future<void> createDirectory(String path) async {
-    await OpfsHelper.getDirectoryHandle(path, create: true);
+  Future<void> createDirectory(String directoryPath) async {
+    await OpfsHelper.getDirectoryHandle(directoryPath, create: true);
   }
 
   @override
-  Future<void> deleteDirectory(String path) async {
-    await OpfsHelper.deleteDirectory(path);
+  Future<void> deleteDirectory(String directoryPath) async {
+    await OpfsHelper.deleteDirectory(directoryPath);
   }
 
   @override
-  Future<List<String>> getFilesInDirectory(String path) async {
-    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
+  Future<List<String>> getFilesInDirectory(String directoryPath) async {
+    final directoryHandle = await OpfsHelper.getDirectoryHandle(directoryPath);
+    final directoryHandleExt = directoryHandle as FileSystemDirectoryHandleExt;
+    final entries = await directoryHandleExt.values().asStream().toList();
 
-    final entries = directoryHandle
-        .getProperty<JSArray<FileSystemHandle>>('entries'.toJS)
-        .toDart;
-
-    final fileFutures = entries
+    return entries
         .where((handle) => handle.kind == 'file')
         .cast<FileSystemFileHandle>()
-        .map(
-          (fileHandle) async => URL
-              .createObjectURL((await fileHandle.getFile().toDart) as JSObject),
-        )
+        .map((fileHandle) => fileHandle.name)
         .toList();
-
-    return Future.wait(fileFutures);
   }
 
   @override
-  Future<List<String>> getDirectoriesInDirectory(String path) async {
-    final directoryHandle = await OpfsHelper.getDirectoryHandle(path);
-
-    final entries = directoryHandle
-        .getProperty<JSArray<FileSystemHandle>>('entries'.toJS)
-        .toDart;
+  Future<List<String>> getDirectoriesInDirectory(String directoryPath) async {
+    final directoryHandle = await OpfsHelper.getDirectoryHandle(directoryPath);
+    final directoryHandleExt = directoryHandle as FileSystemDirectoryHandleExt;
+    final entries = await directoryHandleExt.values().asStream().toList();
 
     return entries
         .where((handle) => handle.kind == 'directory')
@@ -138,4 +131,35 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
         .map((directoryHandle) => directoryHandle.name)
         .toList();
   }
+
+  @override
+  Future<String> getQualifiedPathForFile(String filePath) async {
+    final fileHandle = await OpfsHelper.getFileHandle(filePath);
+    return URL.createObjectURL(fileHandle);
+  }
+}
+
+extension type FileSystemDirectoryHandleExt._(FileSystemDirectoryHandle _)
+    implements FileSystemHandle, JSObject {
+  external JsAsyncIterator<FileSystemHandle> values();
+}
+
+extension type JsAsyncIterator<T extends JSAny>._(JSObject _)
+    implements JSObject {
+  external JSPromise<JsAsyncIteratorState<T>> next();
+
+  Stream<T> asStream() async* {
+    while (true) {
+      final result = await next().toDart;
+      if (result.done) break;
+      yield result.value;
+    }
+  }
+}
+
+extension type JsAsyncIteratorState<T extends JSAny>._(JSObject _)
+    implements JSObject {
+  external bool get done;
+
+  external T get value;
 }

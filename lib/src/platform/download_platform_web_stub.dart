@@ -21,27 +21,32 @@ class WebDownloadPlatform implements DownloadPlatformInterface {
   }
 
   @override
-  Future<void> deleteFile(String path) async {
+  Future<void> deleteFile(String filePath) async {
     throw UnimplementedError('This is a stub implementation');
   }
 
   @override
-  Future<void> createDirectory(String path) async {
+  Future<void> createDirectory(String directoryPath) async {
     throw UnimplementedError('This is a stub implementation');
   }
 
   @override
-  Future<void> deleteDirectory(String path) async {
+  Future<void> deleteDirectory(String directoryPath) async {
     throw UnimplementedError('This is a stub implementation');
   }
 
   @override
-  Future<List<String>> getFilesInDirectory(String path) async {
+  Future<List<String>> getFilesInDirectory(String directoryPath) async {
     throw UnimplementedError('This is a stub implementation');
   }
 
   @override
-  Future<List<String>> getDirectoriesInDirectory(String path) async {
+  Future<List<String>> getDirectoriesInDirectory(String directoryPath) async {
+    throw UnimplementedError('This is a stub implementation');
+  }
+
+  @override
+  Future<String> getQualifiedPathForFile(String filePath) async {
     throw UnimplementedError('This is a stub implementation');
   }
 }
