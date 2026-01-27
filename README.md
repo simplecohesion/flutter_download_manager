@@ -141,13 +141,13 @@ await dl.addDownload(url2, "./test2.ipa");
 await dl.addDownload(url3, "./test3.ipa");
 await dl.addDownload(url, "./test.ipa");
 
-var downloadProgress = dl.getDownloadProgress(urls);
+var downloadProgress = dl.getBatchDownloadProgress(urls);
 
 downloadProgress.addListener(() {
   print(downloadProgress.value);
 });
 
-await dl.whenDownloadsComplete(urls);
+await dl.whenBatchDownloadsComplete(urls);
 ```
 
 ```dart
@@ -171,7 +171,7 @@ urls.add(url6);
 urls.add(url5);
 urls.add(url);
 
-dl.cancelDownloads(urls);
+dl.cancelBatchDownloads(urls);
 ```
 ### Get Batch Download Progress
 
@@ -182,7 +182,7 @@ var urls = <String>[];
 urls.add(url2);
 urls.add(url3);
 
-var downloadProgress = dl.getDownloadProgress(urls);
+var downloadProgress = dl.getBatchDownloadProgress(urls);
 
 downloadProgress.addListener(() {
   print(downloadProgress.value);
@@ -199,7 +199,7 @@ urls.add(url2);
 urls.add(url3);
 urls.add(url);
 
-await dl.whenDownloadsComplete(urls);
+await dl.whenBatchDownloadsComplete(urls);
 ```
 
 ## Future Work

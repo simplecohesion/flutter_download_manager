@@ -14,19 +14,19 @@ class DownloadTask {
 
   Future<DownloadStatus> whenDownloadComplete(
       {Duration timeout = const Duration(hours: 2)}) async {
-    var completer = Completer<DownloadStatus>();
-
+    // If already in a terminal state, return immediately
     if (status.value.isCompleted) {
-      completer.complete(status.value);
+      return status.value;
     }
 
-    var listener;
-    listener = () {
-      if (status.value.isCompleted) {
+    var completer = Completer<DownloadStatus>();
+
+    void listener() {
+      if (status.value.isCompleted && !completer.isCompleted) {
         completer.complete(status.value);
         status.removeListener(listener);
       }
-    };
+    }
 
     status.addListener(listener);
 
