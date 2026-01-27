@@ -14,8 +14,6 @@ class DownloadManager {
   static const partialExtension = ".partial";
   static const tempExtension = ".temp";
 
-  // var tasks = StreamController<DownloadTask>();
-
   int maxConcurrentTasks = 2;
   int runningTasks = 0;
 
@@ -38,10 +36,17 @@ class DownloadManager {
 
   void Function(int, int) createCallback(url, int partialFileLength) =>
       (int received, int total) {
-        getDownload(url)?.progress.value =
-            (received + partialFileLength) / (total + partialFileLength);
-
-        if (total == -1) {}
+        // Handle unknown content length (total == -1) to avoid NaN/Infinity
+        if (total == -1) {
+          // Cannot calculate progress without total size; leave progress unchanged
+          // or set to -1 to indicate indeterminate
+          return;
+        }
+        final totalSize = total + partialFileLength;
+        if (totalSize > 0) {
+          getDownload(url)?.progress.value =
+              (received + partialFileLength) / totalSize;
+        }
       };
 
   Future<void> download(String url, String savePath, cancelToken,
@@ -80,12 +85,20 @@ class DownloadManager {
             deleteOnError: true);
 
         if (response.statusCode == HttpStatus.partialContent) {
+          // Server supports resume - append temp to partial and finalize
           var ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-          var _f = File(partialFilePath + tempExtension);
-          await ioSink.addStream(_f.openRead());
-          await _f.delete();
+          var tempFile = File(partialFilePath + tempExtension);
+          await ioSink.addStream(tempFile.openRead());
+          await tempFile.delete();
           await ioSink.close();
           await partialFile.rename(savePath);
+
+          setStatus(task, DownloadStatus.completed);
+        } else if (response.statusCode == HttpStatus.ok) {
+          // Server doesn't support resume - sent full file, use it instead
+          await partialFile.delete();
+          var tempFile = File(partialFilePath + tempExtension);
+          await tempFile.rename(savePath);
 
           setStatus(task, DownloadStatus.completed);
         }
@@ -101,7 +114,15 @@ class DownloadManager {
         }
       }
     } catch (e) {
-      var task = getDownload(url)!;
+      var task = getDownload(url);
+      if (task == null) {
+        // Task was removed during download; decrement counter and continue
+        runningTasks--;
+        if (_queue.isNotEmpty) {
+          _startExecution();
+        }
+        rethrow;
+      }
       if (task.status.value != DownloadStatus.canceled &&
           task.status.value != DownloadStatus.paused) {
         setStatus(task, DownloadStatus.failed);
@@ -128,19 +149,9 @@ class DownloadManager {
     }
   }
 
-  void disposeNotifiers(DownloadTask task) {
-    // task.status.dispose();
-    // task.progress.dispose();
-  }
-
   void setStatus(DownloadTask? task, DownloadStatus status) {
     if (task != null) {
       task.status.value = status;
-
-      // tasks.add(task);
-      if (status.isCompleted) {
-        disposeNotifiers(task);
-      }
     }
   }
 
@@ -169,7 +180,8 @@ class DownloadManager {
         // Do nothing
         return _cache[downloadRequest.url]!;
       } else {
-        _queue.remove(_cache[downloadRequest.url]);
+        // Remove the existing request from queue (not the task itself)
+        _queue.remove(_cache[downloadRequest.url]!.request);
       }
     }
 
@@ -183,42 +195,54 @@ class DownloadManager {
     return task;
   }
 
-  Future<void> pauseDownload(String url) async {
+  Future<bool> pauseDownload(String url) async {
     if (kDebugMode) {
       print("Pause Download");
     }
-    var task = getDownload(url)!;
+    var task = getDownload(url);
+    if (task == null) {
+      return false;
+    }
     setStatus(task, DownloadStatus.paused);
     task.request.cancelToken.cancel();
 
     _queue.remove(task.request);
+    return true;
   }
 
-  Future<void> cancelDownload(String url) async {
+  Future<bool> cancelDownload(String url) async {
     if (kDebugMode) {
       print("Cancel Download");
     }
-    var task = getDownload(url)!;
+    var task = getDownload(url);
+    if (task == null) {
+      return false;
+    }
     setStatus(task, DownloadStatus.canceled);
     _queue.remove(task.request);
     task.request.cancelToken.cancel();
+    return true;
   }
 
-  Future<void> resumeDownload(String url) async {
+  Future<bool> resumeDownload(String url) async {
     if (kDebugMode) {
       print("Resume Download");
     }
-    var task = getDownload(url)!;
+    var task = getDownload(url);
+    if (task == null) {
+      return false;
+    }
     setStatus(task, DownloadStatus.downloading);
     task.request.cancelToken = CancelToken();
     _queue.add(task.request);
 
     _startExecution();
+    return true;
   }
 
-  Future<void> removeDownload(String url) async {
-    cancelDownload(url);
-    _cache.remove(url);
+  Future<bool> removeDownload(String url) async {
+    await cancelDownload(url);
+    return _cache.remove(url) != null;
   }
 
   // Do not immediately call getDownload After addDownload, rather use the returned DownloadTask from addDownload
@@ -242,10 +266,13 @@ class DownloadManager {
   }
 
   // Batch Download Mechanism
-  Future<void> addBatchDownloads(List<String> urls, String savedDir) async {
-    urls.forEach((url) {
-      addDownload(url, savedDir);
-    });
+  Future<List<DownloadTask?>> addBatchDownloads(
+      List<String> urls, String savedDir) async {
+    var tasks = <DownloadTask?>[];
+    for (var url in urls) {
+      tasks.add(await addDownload(url, savedDir));
+    }
+    return tasks;
   }
 
   List<DownloadTask?> getBatchDownloads(List<String> urls) {
@@ -253,21 +280,21 @@ class DownloadManager {
   }
 
   Future<void> pauseBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      pauseDownload(element);
-    });
+    for (var url in urls) {
+      await pauseDownload(url);
+    }
   }
 
   Future<void> cancelBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      cancelDownload(element);
-    });
+    for (var url in urls) {
+      await cancelDownload(url);
+    }
   }
 
   Future<void> resumeBatchDownloads(List<String> urls) async {
-    urls.forEach((element) {
-      resumeDownload(element);
-    });
+    for (var url in urls) {
+      await resumeDownload(url);
+    }
   }
 
   ValueNotifier<double> getBatchDownloadProgress(List<String> urls) {
