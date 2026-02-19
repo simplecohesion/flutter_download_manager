@@ -51,8 +51,8 @@ class DownloadManager {
 
   Future<void> download(String url, String savePath, cancelToken,
       {forceDownload = false}) async {
-    late String partialFilePath;
-    late File partialFile;
+    String? partialFilePath;
+    File? partialFile;
     try {
       var task = getDownload(url);
 
@@ -66,6 +66,7 @@ class DownloadManager {
       }
       partialFilePath = savePath + partialExtension;
       partialFile = File(partialFilePath);
+      await partialFile.parent.create(recursive: true);
 
       var partialFileExist = await partialFile.exists();
 
@@ -116,42 +117,39 @@ class DownloadManager {
     } catch (e) {
       var task = getDownload(url);
       if (task == null) {
-        // Task was removed during download; decrement counter and continue
-        runningTasks--;
-        if (_queue.isNotEmpty) {
-          _startExecution();
-        }
         rethrow;
       }
       if (task.status.value != DownloadStatus.canceled &&
           task.status.value != DownloadStatus.paused) {
         setStatus(task, DownloadStatus.failed);
-        runningTasks--;
-
-        if (_queue.isNotEmpty) {
-          _startExecution();
-        }
         rethrow;
       } else if (task.status.value == DownloadStatus.paused) {
-        final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
-        final f = File(partialFilePath + tempExtension);
-        if (await f.exists()) {
-          await ioSink.addStream(f.openRead());
+        if (partialFile != null && partialFilePath != null) {
+          final ioSink = partialFile.openWrite(mode: FileMode.writeOnlyAppend);
+          final f = File(partialFilePath + tempExtension);
+          if (await f.exists()) {
+            await ioSink.addStream(f.openRead());
+          }
+          await ioSink.close();
         }
-        await ioSink.close();
       }
-    }
+    } finally {
+      if (runningTasks > 0) {
+        runningTasks--;
+      }
 
-    runningTasks--;
-
-    if (_queue.isNotEmpty) {
-      _startExecution();
+      if (_queue.isNotEmpty) {
+        _startExecution();
+      }
     }
   }
 
   void setStatus(DownloadTask? task, DownloadStatus status) {
     if (task != null) {
       task.status.value = status;
+      if (status == DownloadStatus.completed) {
+        task.progress.value = 1.0;
+      }
     }
   }
 
@@ -317,7 +315,7 @@ class DownloadManager {
       if (task != null) {
         progressMap[url] = 0.0;
 
-        if (task.status.value.isCompleted) {
+        if (task.status.value == DownloadStatus.completed) {
           progressMap[url] = 1.0;
           progress.value = progressMap.values.sum / total;
         }
@@ -333,7 +331,9 @@ class DownloadManager {
         var listener;
         listener = () {
           if (task.status.value.isCompleted) {
-            progressMap[url] = 1.0;
+            if (task.status.value == DownloadStatus.completed) {
+              progressMap[url] = 1.0;
+            }
             progress.value = progressMap.values.sum / total;
             task.status.removeListener(listener);
             task.progress.removeListener(progressListener);
@@ -394,7 +394,7 @@ class DownloadManager {
   }
 
   void _startExecution() async {
-    if (runningTasks == maxConcurrentTasks || _queue.isEmpty) {
+    if (runningTasks >= maxConcurrentTasks || _queue.isEmpty) {
       return;
     }
 
@@ -405,8 +405,11 @@ class DownloadManager {
       }
       var currentRequest = _queue.removeFirst();
 
-      download(
-          currentRequest.url, currentRequest.path, currentRequest.cancelToken);
+      unawaited(download(currentRequest.url, currentRequest.path,
+              currentRequest.cancelToken)
+          .catchError((Object _, StackTrace __) {
+        // Errors are surfaced through task status; avoid uncaught async errors.
+      }));
 
       await Future.delayed(Duration(milliseconds: 500), null);
     }
