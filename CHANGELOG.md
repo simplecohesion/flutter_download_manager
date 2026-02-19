@@ -1,3 +1,12 @@
+## [0.5.9] - Bug Fixes
+
+* Fix queue worker cleanup to avoid leaked running task slots during early exits/cancellation.
+* Prevent uncaught async errors from scheduler-launched downloads on failure.
+* Ensure task progress reaches `1.0` on successful completion, including unknown content-length cases.
+* Correct batch progress to count only `completed` downloads as successful completion.
+* Add deterministic regression tests for scheduler and progress edge cases.
+* Harden example app actions by waiting for storage init, guarding file deletes, and surfacing operation errors.
+
 ## [0.5.5] - Bug Fixes
 
 * Update dio to 5.0.1 #10 mbfakourii 
